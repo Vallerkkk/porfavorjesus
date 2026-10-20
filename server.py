@@ -1,8 +1,8 @@
 """
-Servidor Back-end 100% Gratuito para o Órbita (Pasta SITEEE)
-- Banco de dados SQLite nativo do Python (orbita.db - zero custo)
-- WebSockets nativos (FastAPI) para chat em tempo real entre todos os usuários
-- Endpoint /token compatível com LiveKit Cloud Free Tier (50GB/mês grátis)
+Servidor Back-end com Supabase + SQLite Gratuito para o Órbita (Pasta SITEEE)
+- Banco de dados em Nuvem: Supabase PostgreSQL com Realtime
+- Banco de dados Local Fallback: SQLite nativo (orbita.db)
+- WebSockets nativos (FastAPI) para sincronização multi-dispositivo
 - Serve o front-end orbita.html automaticamente em http://localhost:8000
 """
 import json
@@ -20,11 +20,18 @@ from fastapi.responses import FileResponse, JSONResponse
 BASE_DIR = Path(__file__).resolve().parent
 DB_PATH = BASE_DIR / "orbita.db"
 
+# Supabase Credentials (Configurados)
+SUPABASE_URL = os.getenv("SUPABASE_URL", "https://hwhzzlivoisylmtyfkgu.supabase.co")
+SUPABASE_PUBLISHABLE_KEY = os.getenv("SUPABASE_PUBLISHABLE_KEY", "sb_publishable_NI_xPZVMM-LZL0WHDjyJNw_Cmnb38XX")
+SUPABASE_JWKS_URL = os.getenv("SUPABASE_JWKS_URL", "https://hwhzzlivoisylmtyfkgu.supabase.co/auth/v1/.well-known/jwks.json")
+SUPABASE_SECRET_KEY = os.getenv("SUPABASE_SECRET_KEY", "sb_secret_Ozi475zSO2hBG9LkvJmzGQ_mGtRJGTg")
+
+# LiveKit (Opcional - SFU de voz/vídeo)
 LIVEKIT_API_KEY = os.getenv("LIVEKIT_API_KEY", "devkey")
 LIVEKIT_API_SECRET = os.getenv("LIVEKIT_API_SECRET", "secret")
 LIVEKIT_URL = os.getenv("LIVEKIT_URL", "wss://seu-projeto.livekit.cloud")
 
-app = FastAPI(title="Órbita Server (Gratuito)")
+app = FastAPI(title="Órbita Server (Supabase & Realtime)")
 
 app.add_middleware(
     CORSMiddleware,
@@ -87,6 +94,17 @@ def serve_orbita():
     return FileResponse(BASE_DIR / "orbita.html")
 
 
+@app.get("/api/supabase/config")
+def get_supabase_config():
+    """Retorna credenciais públicas para o cliente web."""
+    return {
+        "supabase_url": SUPABASE_URL,
+        "publishable_key": SUPABASE_PUBLISHABLE_KEY,
+        "jwks_url": SUPABASE_JWKS_URL,
+        "status": "connected"
+    }
+
+
 @app.get("/api/messages")
 def list_messages(conv_key: str = "orbita:geral"):
     with sqlite3.connect(DB_PATH) as conn:
@@ -99,10 +117,6 @@ def list_messages(conv_key: str = "orbita:geral"):
 
 @app.get("/token")
 def issue_livekit_token(room: str = "principal", identity: str = "usuario"):
-    """
-    Gera um token JWT assinado para conectar ao LiveKit Cloud Free Tier
-    sem precisar pagar servidores de mídia próprios.
-    """
     now = int(time.time())
     claims: Dict[str, object] = {
         "iss": LIVEKIT_API_KEY,

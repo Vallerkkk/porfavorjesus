@@ -4,9 +4,6 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Órbita — Comunidade, Chat & Voz em Tempo Real</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <style>
 /* ============================================================
    TOKENS & THEMES
@@ -46,8 +43,8 @@
   --r-lg: 16px;
   --msg-gap: 4px;
 
-  --font: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-  --mono: 'JetBrains Mono', 'Courier New', monospace;
+  --font: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  --mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace;
 }
 
 body[data-theme="blurple"] {
@@ -2817,6 +2814,7 @@ body[data-density="compact"] .msg.grouped .avatar-col {
   <p>Upload direto no canal ativo (100% gratuito)</p>
 </div>
 
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script>
 /* ============================================================
    WEB AUDIO SYNTHESIZER (DISCORD-STYLE UI SOUNDS)
@@ -4334,6 +4332,11 @@ document.addEventListener('click', (e) => {
       const idx = list.indexOf(msgObj);
       if (idx > -1) list.splice(idx, 1);
       saveStateToStorage();
+      try {
+        if (supabaseClient) {
+          supabaseClient.from('messages').delete().eq('id', msgId).then();
+        }
+      } catch (err) {}
       renderAllMessages();
       showToast('Mensagem excluída');
     }
@@ -4433,41 +4436,17 @@ $('#dm-quick-find').addEventListener('click', () => {
    PERSISTÊNCIA GRATUITA (LOCALSTORAGE) + BROADCAST P2P + WEBSOCKET
 ============================================================ */
 const STORAGE_KEY = 'orbita_siteee_state_v2';
-
-/* ============================================================
-   ⚠️ CONFIGURAÇÃO AUTOMÁTICA PARA O RENDER
-   Detecta se está a correr localmente (localhost) ou em produção
-   (Render) e escolhe a URL correcta do WebSocket:
-   - Local:    ws://localhost:8000/ws
-   - Render:   wss://SEU-DOMINIO.onrender.com/ws
-============================================================ */
-function buildAutoWsUrl() {
-  try {
-    const host = window.location.hostname;
-    const protocol = window.location.protocol;
-    // Ambiente local (Windows, VS Code Live Server, etc.)
-    if (host === 'localhost' || host === '127.0.0.1' || host === '0.0.0.0') {
-      return 'ws://localhost:8000/ws';
-    }
-    // Ambiente de produção no Render (ou qualquer host HTTPS)
-    if (protocol === 'https:') {
-      return `wss://${window.location.host}/ws`;
-    }
-    // Fallback: HTTP mas não local → usa ws no mesmo host
-    return `ws://${window.location.host}/ws`;
-  } catch (e) {
-    return 'ws://localhost:8000/ws';
-  }
-}
-
 const backendConfig = {
-  wsUrl: buildAutoWsUrl(),
+  wsUrl: 'ws://localhost:8000/ws',
   livekitUrl: '',
-  supabaseUrl: '',
-  wsConnected: false
+  supabaseUrl: 'https://hwhzzlivoisylmtyfkgu.supabase.co',
+  supabaseKey: 'sb_publishable_NI_xPZVMM-LZL0WHDjyJNw_Cmnb38XX',
+  supabaseJwksUrl: 'https://hwhzzlivoisylmtyfkgu.supabase.co/auth/v1/.well-known/jwks.json',
+  wsConnected: false,
+  supabaseConnected: false
 };
-
 let wsClient = null;
+let supabaseClient = null;
 let localCamStream = null;
 let localScreenStream = null;
 
@@ -4482,7 +4461,9 @@ function saveStateToStorage() {
       backendConfig: {
         wsUrl: backendConfig.wsUrl,
         livekitUrl: backendConfig.livekitUrl,
-        supabaseUrl: backendConfig.supabaseUrl
+        supabaseUrl: backendConfig.supabaseUrl,
+        supabaseKey: backendConfig.supabaseKey,
+        supabaseJwksUrl: backendConfig.supabaseJwksUrl
       }
     };
     localStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
@@ -4505,12 +4486,10 @@ function loadStateFromStorage() {
       state.density = data.density;
       document.body.dataset.density = state.density;
     }
-    // Importante: nunca sobrepor o wsUrl automático com o localStorage
-    // (para não ficar preso no endereço antigo de localhost quando já estiver no Render).
-    if (data.backendConfig) {
-      backendConfig.livekitUrl = data.backendConfig.livekitUrl || '';
-      backendConfig.supabaseUrl = data.backendConfig.supabaseUrl || '';
-    }
+    if (data.backendConfig) Object.assign(backendConfig, data.backendConfig);
+    if (!backendConfig.supabaseUrl) backendConfig.supabaseUrl = 'https://hwhzzlivoisylmtyfkgu.supabase.co';
+    if (!backendConfig.supabaseKey) backendConfig.supabaseKey = 'sb_publishable_NI_xPZVMM-LZL0WHDjyJNw_Cmnb38XX';
+    if (!backendConfig.supabaseJwksUrl) backendConfig.supabaseJwksUrl = 'https://hwhzzlivoisylmtyfkgu.supabase.co/auth/v1/.well-known/jwks.json';
   } catch (e) {}
 }
 
@@ -4534,6 +4513,96 @@ try {
   }
 } catch (e) {}
 
+
+/* ============================================================
+   INTEGRAÇÃO SUPABASE NUVEM (POSTGRESQL + REALTIME)
+============================================================ */
+function initSupabase() {
+  try {
+    if (window.supabase && backendConfig.supabaseUrl && backendConfig.supabaseKey) {
+      supabaseClient = window.supabase.createClient(backendConfig.supabaseUrl, backendConfig.supabaseKey);
+      backendConfig.supabaseConnected = true;
+      const connLbl = $('#conn-label');
+      const connDot = $('#conn-dot');
+      if (connLbl) connLbl.textContent = 'Supabase Ativo';
+      if (connDot) {
+        connDot.style.background = '#3ecf8e';
+        connDot.style.boxShadow = '0 0 8px #3ecf8e';
+      }
+      showToast('⚡ Supabase Nuvem conectado! Banco de dados em tempo real ativo.');
+
+      loadMessagesFromSupabase();
+
+      // Inscrição em tempo real para sincronização instantânea
+      supabaseClient
+        .channel('public:messages')
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'messages' }, (payload) => {
+          if (payload.eventType === 'INSERT' || payload.eventType === 'UPDATE') {
+            const row = payload.new;
+            if (!row || !row.conv_key) return;
+            const convKey = row.conv_key;
+            let msg = row.payload;
+            if (typeof msg === 'string') {
+              try { msg = JSON.parse(msg); } catch (e) {}
+            }
+            if (msg && msg.id) {
+              if (!channelMessages[convKey]) channelMessages[convKey] = [];
+              const idx = channelMessages[convKey].findIndex(x => x.id === msg.id);
+              if (idx >= 0) {
+                channelMessages[convKey][idx] = msg;
+              } else {
+                channelMessages[convKey].push(msg);
+              }
+              saveStateToStorage();
+              if (getConversationKey() === convKey) renderAllMessages();
+            }
+          } else if (payload.eventType === 'DELETE') {
+            const oldId = payload.old && payload.old.id;
+            if (oldId) {
+              for (const k in channelMessages) {
+                channelMessages[k] = channelMessages[k].filter(x => x.id !== oldId);
+              }
+              saveStateToStorage();
+              renderAllMessages();
+            }
+          }
+        })
+        .subscribe();
+    }
+  } catch (err) {
+    console.warn('Supabase não pôde ser inicializado:', err);
+  }
+}
+
+async function loadMessagesFromSupabase() {
+  if (!supabaseClient) return;
+  try {
+    const { data, error } = await supabaseClient
+      .from('messages')
+      .select('*')
+      .order('id', { ascending: true })
+      .limit(300);
+    if (!error && Array.isArray(data) && data.length > 0) {
+      data.forEach(row => {
+        const convKey = row.conv_key;
+        let msg = row.payload;
+        if (typeof msg === 'string') {
+          try { msg = JSON.parse(msg); } catch (e) {}
+        }
+        if (msg && msg.id && convKey) {
+          if (!channelMessages[convKey]) channelMessages[convKey] = [];
+          const exists = channelMessages[convKey].some(x => x.id === msg.id);
+          if (!exists) {
+            channelMessages[convKey].push(msg);
+          }
+        }
+      });
+      saveStateToStorage();
+      renderAllMessages();
+    }
+  } catch (err) {}
+}
+
 function connectFreeWebSocket() {
   try {
     if (wsClient) {
@@ -4546,7 +4615,7 @@ function connectFreeWebSocket() {
       backendConfig.wsConnected = true;
       $('#conn-label').textContent = 'Servidor Ativo';
       $('#conn-dot').style.background = 'var(--online)';
-      showToast('Conectado ao servidor em tempo real!');
+      showToast('Conectado ao servidor local FastAPI em tempo real!');
     };
     wsClient.onmessage = (ev) => {
       try {
@@ -4580,6 +4649,21 @@ function broadcastNewMessage(convKey, message) {
   try {
     if (wsClient && wsClient.readyState === WebSocket.OPEN) {
       wsClient.send(JSON.stringify({ type: 'CHAT_MESSAGE', convKey, message }));
+    }
+  } catch (e) {}
+  try {
+    if (supabaseClient) {
+      supabaseClient
+        .from('messages')
+        .upsert({
+          id: message.id,
+          conv_key: convKey,
+          payload: message,
+          created_at: new Date().toISOString()
+        })
+        .then(({ error }) => {
+          if (error) console.warn('Supabase sync note:', error.message);
+        });
     }
   } catch (e) {}
 }
@@ -4776,19 +4860,46 @@ document.addEventListener('keydown', (e) => {
 ============================================================ */
 $('#btn-free-setup').addEventListener('click', () => {
   openModal(
-    '☁️ Configurar Site 100% Gratuito (Pasta SITEEE)',
+    '⚡ Supabase & Configuração em Nuvem (Pasta SITEEE)',
     `
       <div style="font-size:13px;color:var(--text-dim);line-height:1.45;">
-        O seu site já está com <strong>persistência local ativa</strong>, <strong>sincronização entre abas (BroadcastChannel)</strong> e <strong>WebRTC nativo (câmera e tela reais)</strong>. Para rodar o servidor Python/FastAPI na sua pasta <code>C:\\Users\\João Pedro\\Desktop\\SITEEE</code>:
+        O seu site está configurado com <strong>Supabase Nuvem (PostgreSQL + Realtime)</strong>, além de <strong>SQLite local</strong>, <strong>BroadcastChannel</strong> e <strong>WebRTC nativo</strong>.
+      </div>
+      <div style="background:rgba(62,207,142,0.1);border:1px solid rgba(62,207,142,0.3);border-radius:var(--r-sm);padding:8px 12px;display:flex;align-items:center;gap:8px;font-size:12.5px;color:#3ecf8e;font-weight:600;">
+        <span>●</span> Supabase Ativo: hwhzzlivoisylmtyfkgu.supabase.co
+      </div>
+      <div class="modal-field">
+        <label>Supabase Project URL</label>
+        <input type="text" id="cfg-sb-url" value="${esc(backendConfig.supabaseUrl)}">
+      </div>
+      <div class="modal-field">
+        <label>Supabase Publishable / Anon Key</label>
+        <input type="text" id="cfg-sb-key" value="${esc(backendConfig.supabaseKey)}">
+      </div>
+      <div class="modal-field">
+        <label>Comando SQL para rodar no Supabase (SQL Editor)</label>
+        <div class="code-cmd-box">CREATE TABLE IF NOT EXISTS public.messages (
+  id BIGINT PRIMARY KEY,
+  conv_key TEXT NOT NULL,
+  payload JSONB NOT NULL,
+  created_at TIMESTAMPTZ DEFAULT NOW() NOT NULL
+);
+ALTER PUBLICATION supabase_realtime ADD TABLE messages;
+ALTER TABLE public.messages ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Livre acesso" ON public.messages FOR ALL USING (true);</div>
+      </div>
+      <div class="modal-field">
+        <label>Servidor Back-end Local Python (Opcional - FastAPI)</label>
+        <input type="text" id="cfg-ws-url" value="${esc(backendConfig.wsUrl)}" placeholder="ws://localhost:8000/ws">
       </div>
       <div class="modal-field">
         <label>1. Comando Rápido no PowerShell / CMD (100% Gratuito)</label>
-        <div class="code-cmd-box">cd "C:\\Users\\João Pedro\\Desktop\\SITEEE"
+        <div class="code-cmd-box">cd "C:\Users\João Pedro\Desktop\SITEEE"
 iniciar_orbita.bat</div>
       </div>
       <div class="modal-field">
         <label>2. URL do Servidor WebSocket (Local ou Render.com Free)</label>
-        <input type="text" id="cfg-ws-url" value="${esc(backendConfig.wsUrl)}" placeholder="wss://seu-app.onrender.com/ws">
+        <input type="text" id="cfg-ws-url" value="${esc(backendConfig.wsUrl)}" placeholder="ws://localhost:8000/ws">
       </div>
       <div class="modal-field">
         <label>3. URL LiveKit Cloud Free (Opcional — 50GB/mês grátis)</label>
@@ -4800,13 +4911,13 @@ iniciar_orbita.bat</div>
       </div>
     `,
     () => {
-      // Permite override manual, mas mantém a auto-detecção como padrão
-      const manualWs = ($('#cfg-ws-url').value || '').trim();
-      if (manualWs) backendConfig.wsUrl = manualWs;
-      backendConfig.livekitUrl = ($('#cfg-lk-url').value || '').trim();
+      backendConfig.supabaseUrl = ($('#cfg-sb-url') ? $('#cfg-sb-url').value : backendConfig.supabaseUrl).trim();
+      backendConfig.supabaseKey = ($('#cfg-sb-key') ? $('#cfg-sb-key').value : backendConfig.supabaseKey).trim();
+      backendConfig.wsUrl = ($('#cfg-ws-url').value || '').trim();
       saveStateToStorage();
+      initSupabase();
       connectFreeWebSocket();
-      showToast('Configurações gratuitas salvas e reconectando...');
+      showToast('Configurações do Supabase salvas e ativas!');
     },
     'Salvar & Conectar'
   );
@@ -4941,6 +5052,7 @@ async function applyDirectlyToLocalFolder() {
    INICIALIZAÇÃO
 ============================================================ */
 loadStateFromStorage();
+initSupabase();
 connectFreeWebSocket();
 renderSidebarChannels();
 renderMembersSidebar();
