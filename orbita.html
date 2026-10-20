@@ -4433,12 +4433,40 @@ $('#dm-quick-find').addEventListener('click', () => {
    PERSISTÊNCIA GRATUITA (LOCALSTORAGE) + BROADCAST P2P + WEBSOCKET
 ============================================================ */
 const STORAGE_KEY = 'orbita_siteee_state_v2';
+
+/* ============================================================
+   ⚠️ CONFIGURAÇÃO AUTOMÁTICA PARA O RENDER
+   Detecta se está a correr localmente (localhost) ou em produção
+   (Render) e escolhe a URL correcta do WebSocket:
+   - Local:    ws://localhost:8000/ws
+   - Render:   wss://SEU-DOMINIO.onrender.com/ws
+============================================================ */
+function buildAutoWsUrl() {
+  try {
+    const host = window.location.hostname;
+    const protocol = window.location.protocol;
+    // Ambiente local (Windows, VS Code Live Server, etc.)
+    if (host === 'localhost' || host === '127.0.0.1' || host === '0.0.0.0') {
+      return 'ws://localhost:8000/ws';
+    }
+    // Ambiente de produção no Render (ou qualquer host HTTPS)
+    if (protocol === 'https:') {
+      return `wss://${window.location.host}/ws`;
+    }
+    // Fallback: HTTP mas não local → usa ws no mesmo host
+    return `ws://${window.location.host}/ws`;
+  } catch (e) {
+    return 'ws://localhost:8000/ws';
+  }
+}
+
 const backendConfig = {
-  wsUrl: 'ws://localhost:8000/ws',
+  wsUrl: buildAutoWsUrl(),
   livekitUrl: '',
   supabaseUrl: '',
   wsConnected: false
 };
+
 let wsClient = null;
 let localCamStream = null;
 let localScreenStream = null;
@@ -4477,7 +4505,12 @@ function loadStateFromStorage() {
       state.density = data.density;
       document.body.dataset.density = state.density;
     }
-    if (data.backendConfig) Object.assign(backendConfig, data.backendConfig);
+    // Importante: nunca sobrepor o wsUrl automático com o localStorage
+    // (para não ficar preso no endereço antigo de localhost quando já estiver no Render).
+    if (data.backendConfig) {
+      backendConfig.livekitUrl = data.backendConfig.livekitUrl || '';
+      backendConfig.supabaseUrl = data.backendConfig.supabaseUrl || '';
+    }
   } catch (e) {}
 }
 
@@ -4513,7 +4546,7 @@ function connectFreeWebSocket() {
       backendConfig.wsConnected = true;
       $('#conn-label').textContent = 'Servidor Ativo';
       $('#conn-dot').style.background = 'var(--online)';
-      showToast('Conectado ao servidor local FastAPI em tempo real!');
+      showToast('Conectado ao servidor em tempo real!');
     };
     wsClient.onmessage = (ev) => {
       try {
@@ -4746,16 +4779,16 @@ $('#btn-free-setup').addEventListener('click', () => {
     '☁️ Configurar Site 100% Gratuito (Pasta SITEEE)',
     `
       <div style="font-size:13px;color:var(--text-dim);line-height:1.45;">
-        O seu site já está com <strong>persistência local ativa</strong>, <strong>sincronização entre abas (BroadcastChannel)</strong> e <strong>WebRTC nativo (câmera e tela reais)</strong>. Para rodar o servidor Python/FastAPI na sua pasta <code>C:\Users\João Pedro\Desktop\SITEEE</code>:
+        O seu site já está com <strong>persistência local ativa</strong>, <strong>sincronização entre abas (BroadcastChannel)</strong> e <strong>WebRTC nativo (câmera e tela reais)</strong>. Para rodar o servidor Python/FastAPI na sua pasta <code>C:\\Users\\João Pedro\\Desktop\\SITEEE</code>:
       </div>
       <div class="modal-field">
         <label>1. Comando Rápido no PowerShell / CMD (100% Gratuito)</label>
-        <div class="code-cmd-box">cd "C:\Users\João Pedro\Desktop\SITEEE"
+        <div class="code-cmd-box">cd "C:\\Users\\João Pedro\\Desktop\\SITEEE"
 iniciar_orbita.bat</div>
       </div>
       <div class="modal-field">
         <label>2. URL do Servidor WebSocket (Local ou Render.com Free)</label>
-        <input type="text" id="cfg-ws-url" value="${esc(backendConfig.wsUrl)}" placeholder="ws://localhost:8000/ws">
+        <input type="text" id="cfg-ws-url" value="${esc(backendConfig.wsUrl)}" placeholder="wss://seu-app.onrender.com/ws">
       </div>
       <div class="modal-field">
         <label>3. URL LiveKit Cloud Free (Opcional — 50GB/mês grátis)</label>
@@ -4767,7 +4800,9 @@ iniciar_orbita.bat</div>
       </div>
     `,
     () => {
-      backendConfig.wsUrl = ($('#cfg-ws-url').value || '').trim();
+      // Permite override manual, mas mantém a auto-detecção como padrão
+      const manualWs = ($('#cfg-ws-url').value || '').trim();
+      if (manualWs) backendConfig.wsUrl = manualWs;
       backendConfig.livekitUrl = ($('#cfg-lk-url').value || '').trim();
       saveStateToStorage();
       connectFreeWebSocket();
