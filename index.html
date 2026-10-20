@@ -1,0 +1,4915 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Órbita — Comunidade, Chat & Voz em Tempo Real</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+/* ============================================================
+   TOKENS & THEMES
+============================================================ */
+:root {
+  --bg-deep:     #07070d;
+  --bg-rail:     #0b0b14;
+  --bg-sidebar:  #12121d;
+  --bg-main:     #181824;
+  --bg-elevated: #202030;
+  --bg-floating: #141420;
+  --bg-input:    #252538;
+  --bg-hover:    rgba(255,255,255,0.05);
+  --bg-active:   rgba(255,255,255,0.09);
+
+  --accent:       #7c5cff;
+  --accent-hover: #9277ff;
+  --accent-2:     #5b8def;
+  --accent-soft:  rgba(124,92,255,0.15);
+  --accent-glow:  rgba(124,92,255,0.38);
+
+  --text:      #f3f4f8;
+  --text-dim:  #a6a8be;
+  --text-mut:  #6d708c;
+
+  --online:  #23a55a;
+  --idle:    #f0b232;
+  --dnd:     #f23f43;
+  --offline: #747f8d;
+  --danger:  #f23f43;
+  --boost:   #ff73fa;
+  --border:  rgba(255,255,255,0.065);
+  --border-strong: rgba(255,255,255,0.12);
+
+  --r-sm: 6px;
+  --r:    10px;
+  --r-lg: 16px;
+  --msg-gap: 4px;
+
+  --font: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --mono: 'JetBrains Mono', 'Courier New', monospace;
+}
+
+body[data-theme="blurple"] {
+  --accent: #5865f2;
+  --accent-hover: #7289da;
+  --accent-2: #4752c4;
+  --accent-soft: rgba(88,101,242,0.16);
+  --accent-glow: rgba(88,101,242,0.4);
+}
+body[data-theme="emerald"] {
+  --accent: #10b981;
+  --accent-hover: #34d399;
+  --accent-2: #06b6d4;
+  --accent-soft: rgba(16,185,129,0.16);
+  --accent-glow: rgba(16,185,129,0.38);
+}
+body[data-theme="nitro"] {
+  --accent: #ec4899;
+  --accent-hover: #f472b6;
+  --accent-2: #8b5cf6;
+  --accent-soft: rgba(236,72,153,0.16);
+  --accent-glow: rgba(236,72,153,0.38);
+}
+body[data-density="compact"] {
+  --msg-gap: 1px;
+}
+body[data-density="compact"] .msg .avatar {
+  width: 28px;
+  height: 28px;
+  font-size: 12px;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { height: 100%; }
+body {
+  font-family: var(--font);
+  background: var(--bg-deep);
+  color: var(--text);
+  font-size: 15px;
+  -webkit-font-smoothing: antialiased;
+  overflow: hidden;
+  user-select: none;
+}
+button { font-family: inherit; background: none; border: none; color: inherit; cursor: pointer; }
+a { color: inherit; text-decoration: none; }
+input, textarea, select { font-family: inherit; }
+svg { display: block; flex-shrink: 0; }
+.hidden { display: none !important; }
+
+::-webkit-scrollbar { width: 7px; height: 7px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: rgba(0,0,0,0.4); border-radius: 4px; }
+::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.2); }
+
+/* ============================================================
+   LAYOUT
+============================================================ */
+.app {
+  display: flex;
+  height: 100vh;
+  width: 100vw;
+  overflow: hidden;
+  position: relative;
+}
+
+/* ============================================================
+   SERVER RAIL
+============================================================ */
+.rail {
+  width: 72px;
+  flex-shrink: 0;
+  background: var(--bg-rail);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 12px 0;
+  gap: 8px;
+  overflow-y: auto;
+  overflow-x: hidden;
+  z-index: 20;
+  border-right: 1px solid rgba(255,255,255,0.03);
+}
+.rail::-webkit-scrollbar { width: 0; }
+
+.server-icon {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  background: var(--bg-elevated);
+  color: var(--text);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 15px;
+  position: relative;
+  transition: border-radius .18s cubic-bezier(.2,.8,.2,1), background .15s ease, transform .12s ease, box-shadow .18s ease;
+  flex-shrink: 0;
+}
+.server-icon::before {
+  content: '';
+  position: absolute;
+  left: -12px;
+  top: 50%;
+  transform: translateY(-50%) scaleY(0);
+  width: 4px;
+  height: 20px;
+  background: var(--text);
+  border-radius: 0 4px 4px 0;
+  transition: transform .18s ease, height .18s ease;
+}
+.server-icon.has-unread::before {
+  transform: translateY(-50%) scaleY(1);
+  height: 8px;
+}
+.server-icon:hover {
+  border-radius: 16px;
+  background: var(--accent);
+  color: #fff;
+  transform: translateY(-1px);
+}
+.server-icon:hover::before {
+  transform: translateY(-50%) scaleY(1);
+  height: 20px;
+}
+.server-icon.active {
+  border-radius: 16px;
+  background: linear-gradient(135deg, var(--accent) 0%, var(--accent-2) 100%);
+  color: #fff;
+  box-shadow: 0 4px 18px var(--accent-glow);
+}
+.server-icon.active::before {
+  transform: translateY(-50%) scaleY(1);
+  height: 36px;
+}
+.server-icon.home {
+  background: var(--bg-elevated);
+  color: var(--accent-hover);
+}
+.server-icon.home.active,
+.server-icon.home:hover {
+  background: linear-gradient(135deg, var(--accent) 0%, var(--accent-2) 100%);
+  color: #fff;
+}
+.server-icon.action-rail {
+  color: var(--online);
+  background: rgba(35,165,90,0.1);
+}
+.server-icon.action-rail:hover,
+.server-icon.action-rail.active {
+  background: var(--online);
+  color: #fff;
+}
+.server-icon .badge {
+  position: absolute;
+  bottom: -2px;
+  right: -2px;
+  background: var(--danger);
+  color: #fff;
+  font-size: 11px;
+  font-weight: 800;
+  min-width: 19px;
+  height: 19px;
+  padding: 0 5px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 3px solid var(--bg-rail);
+}
+.server-icon .voice-pip {
+  position: absolute;
+  top: -2px;
+  right: -2px;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--online);
+  border: 3px solid var(--bg-rail);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.rail-divider {
+  width: 32px;
+  height: 2px;
+  background: var(--border);
+  border-radius: 1px;
+  margin: 2px 0;
+  flex-shrink: 0;
+}
+
+/* ============================================================
+   SIDEBAR
+============================================================ */
+.sidebar {
+  width: 256px;
+  flex-shrink: 0;
+  background: var(--bg-sidebar);
+  display: flex;
+  flex-direction: column;
+  border-right: 1px solid var(--border);
+  position: relative;
+  z-index: 15;
+}
+
+.server-header {
+  height: 52px;
+  padding: 0 14px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid var(--border);
+  cursor: pointer;
+  transition: background .12s;
+  flex-shrink: 0;
+  position: relative;
+}
+.server-header:hover { background: var(--bg-hover); }
+.server-header h1 {
+  font-size: 15px;
+  font-weight: 700;
+  letter-spacing: -.01em;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.server-header .logo-mark {
+  width: 20px;
+  height: 20px;
+  color: var(--accent);
+}
+.server-header .boost-pill {
+  font-size: 10px;
+  font-weight: 800;
+  padding: 2px 6px;
+  border-radius: 99px;
+  background: rgba(255,115,250,0.14);
+  color: var(--boost);
+  letter-spacing: .03em;
+}
+.server-header svg { color: var(--text-dim); }
+
+/* Server Banner strip */
+.server-banner {
+  margin: 8px 8px 2px;
+  padding: 10px 12px;
+  border-radius: var(--r);
+  background: linear-gradient(135deg, rgba(124,92,255,0.22) 0%, rgba(91,141,239,0.14) 100%);
+  border: 1px solid rgba(124,92,255,0.25);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.server-banner .sb-info {
+  font-size: 11px;
+  color: var(--text-dim);
+  line-height: 1.35;
+}
+.server-banner .sb-info strong {
+  color: var(--text);
+  display: block;
+  font-size: 12px;
+}
+.server-banner .sb-btn {
+  padding: 5px 9px;
+  border-radius: var(--r-sm);
+  background: var(--accent);
+  color: #fff;
+  font-size: 11px;
+  font-weight: 700;
+  white-space: nowrap;
+  transition: background .12s;
+}
+.server-banner .sb-btn:hover { background: var(--accent-hover); }
+
+/* Server dropdown menu */
+.server-dropdown {
+  position: absolute;
+  top: 56px;
+  left: 8px;
+  right: 8px;
+  background: var(--bg-floating);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--r);
+  padding: 6px;
+  box-shadow: 0 12px 32px rgba(0,0,0,0.55);
+  z-index: 50;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.server-dropdown button {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 10px;
+  border-radius: var(--r-sm);
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-dim);
+  transition: background .1s, color .1s;
+}
+.server-dropdown button:hover {
+  background: var(--accent);
+  color: #fff;
+}
+.server-dropdown button.boost-item { color: var(--boost); }
+.server-dropdown button.boost-item:hover { background: var(--boost); color: #fff; }
+.server-dropdown .dd-sep {
+  height: 1px;
+  background: var(--border);
+  margin: 3px 4px;
+}
+
+.channels-scroll {
+  flex: 1;
+  overflow-y: auto;
+  padding: 8px 0 16px;
+}
+
+.category { margin-bottom: 6px; }
+.category-header-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 10px 4px 14px;
+}
+.category-header {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: .05em;
+  text-transform: uppercase;
+  color: var(--text-mut);
+  transition: color .12s;
+  text-align: left;
+}
+.category-header:hover { color: var(--text-dim); }
+.category-header svg { transition: transform .2s; }
+.category.collapsed .category-header svg.chev { transform: rotate(-90deg); }
+.category.collapsed .channel-list { display: none; }
+.cat-add-btn {
+  width: 20px;
+  height: 20px;
+  border-radius: 4px;
+  color: var(--text-mut);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: color .12s, background .12s;
+}
+.cat-add-btn:hover {
+  color: var(--text);
+  background: var(--bg-hover);
+}
+
+.channel {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 8px;
+  margin: 1px 8px;
+  border-radius: var(--r-sm);
+  color: var(--text-dim);
+  font-size: 14.5px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background .1s, color .1s;
+  position: relative;
+}
+.channel:hover {
+  background: var(--bg-hover);
+  color: var(--text);
+}
+.channel.active {
+  background: var(--bg-active);
+  color: var(--text);
+  font-weight: 600;
+}
+.channel .ch-icon {
+  width: 19px;
+  height: 19px;
+  flex-shrink: 0;
+  color: var(--text-mut);
+}
+.channel.active .ch-icon,
+.channel:hover .ch-icon { color: var(--text-dim); }
+.channel.unread { color: var(--text); font-weight: 700; }
+.channel.unread::before {
+  content: '';
+  position: absolute;
+  left: -8px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 4px;
+  height: 8px;
+  border-radius: 0 4px 4px 0;
+  background: var(--text);
+}
+.channel .badge-count {
+  margin-left: auto;
+  background: var(--danger);
+  color: #fff;
+  font-size: 11px;
+  font-weight: 700;
+  padding: 1px 6px;
+  border-radius: 8px;
+  min-width: 18px;
+  text-align: center;
+}
+.channel .badge-count.voice-count {
+  background: var(--bg-input);
+  color: var(--text-dim);
+}
+.channel .live-pill {
+  margin-left: auto;
+  background: var(--danger);
+  color: #fff;
+  font-size: 9px;
+  font-weight: 800;
+  padding: 2px 5px;
+  border-radius: 4px;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+}
+
+/* Nested voice users in sidebar */
+.voice-tree {
+  padding: 2px 8px 6px 28px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.voice-tree-user {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 6px;
+  border-radius: var(--r-sm);
+  font-size: 13px;
+  color: var(--text-dim);
+  cursor: pointer;
+  transition: background .1s, color .1s;
+}
+.voice-tree-user:hover {
+  background: var(--bg-hover);
+  color: var(--text);
+}
+.voice-tree-user .vt-avatar {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  font-weight: 700;
+  color: #fff;
+  flex-shrink: 0;
+}
+.voice-tree-user.speaking .vt-avatar {
+  box-shadow: 0 0 0 2px var(--online);
+}
+.voice-tree-user .vt-name {
+  flex: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.voice-tree-user .vt-live {
+  background: var(--danger);
+  color: #fff;
+  font-size: 9px;
+  font-weight: 800;
+  padding: 1px 5px;
+  border-radius: 4px;
+  letter-spacing: .04em;
+}
+
+/* DM Item in Sidebar */
+.dm-search-btn {
+  margin: 10px 10px 4px;
+  padding: 7px 10px;
+  border-radius: var(--r-sm);
+  background: var(--bg-deep);
+  border: 1px solid var(--border);
+  color: var(--text-mut);
+  font-size: 13px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  transition: border-color .12s, color .12s;
+}
+.dm-search-btn:hover {
+  border-color: var(--accent);
+  color: var(--text-dim);
+}
+.dm-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 7px 10px;
+  margin: 2px 8px;
+  border-radius: var(--r-sm);
+  color: var(--text-dim);
+  cursor: pointer;
+  transition: background .12s, color .12s;
+}
+.dm-item:hover { background: var(--bg-hover); color: var(--text); }
+.dm-item.active { background: var(--bg-active); color: var(--text); }
+.dm-item .dm-av {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 13px;
+  color: #fff;
+  position: relative;
+  flex-shrink: 0;
+}
+.dm-item .dm-av .st-dot {
+  position: absolute;
+  bottom: -1px;
+  right: -1px;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  border: 2px solid var(--bg-sidebar);
+}
+
+/* Voice connected bar */
+.voice-bar {
+  margin: 0 8px 8px;
+  padding: 10px;
+  background: var(--bg-deep);
+  border-radius: var(--r);
+  border: 1px solid rgba(35,165,90,0.28);
+  box-shadow: 0 4px 16px rgba(0,0,0,0.25);
+}
+.voice-bar .vb-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 4px;
+}
+.voice-bar .vb-status {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--online);
+  text-transform: uppercase;
+  letter-spacing: .04em;
+}
+.voice-bar .vb-status .dot {
+  width: 7px;
+  height: 7px;
+  background: var(--online);
+  border-radius: 50%;
+  animation: pulse 2s infinite;
+}
+.voice-bar .vb-ping {
+  font-size: 11px;
+  font-family: var(--mono);
+  color: var(--text-mut);
+}
+.voice-bar .vb-name {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text);
+  margin-bottom: 8px;
+  cursor: pointer;
+}
+.voice-bar .vb-name:hover { text-decoration: underline; }
+.voice-bar .vb-actions { display: flex; gap: 6px; }
+.voice-bar .vb-btn {
+  flex: 1;
+  height: 32px;
+  border-radius: var(--r-sm);
+  background: var(--bg-elevated);
+  color: var(--text-dim);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all .12s;
+}
+.voice-bar .vb-btn:hover { background: var(--bg-input); color: var(--text); }
+.voice-bar .vb-btn.danger { background: rgba(242,63,67,0.16); color: var(--danger); }
+.voice-bar .vb-btn.danger:hover { background: var(--danger); color: #fff; }
+.voice-bar .vb-btn.active { background: var(--accent); color: #fff; }
+.voice-bar .vb-btn.muted { background: rgba(242,63,67,0.16); color: var(--danger); }
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: .35; }
+}
+
+/* User panel */
+.user-panel {
+  height: 54px;
+  background: var(--bg-rail);
+  display: flex;
+  align-items: center;
+  padding: 0 8px;
+  gap: 8px;
+  flex-shrink: 0;
+  border-top: 1px solid var(--border);
+  position: relative;
+}
+.user-panel .up-profile-trigger {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 1;
+  min-width: 0;
+  padding: 4px;
+  border-radius: var(--r-sm);
+  cursor: pointer;
+  transition: background .12s;
+}
+.user-panel .up-profile-trigger:hover { background: var(--bg-hover); }
+.user-panel .up-avatar {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #10b981, #059669);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 13px;
+  position: relative;
+  flex-shrink: 0;
+  color: #fff;
+}
+.user-panel .up-avatar .status-dot {
+  position: absolute;
+  bottom: -1px;
+  right: -1px;
+  width: 11px;
+  height: 11px;
+  border-radius: 50%;
+  background: var(--online);
+  border: 2px solid var(--bg-rail);
+}
+.user-panel .up-info { flex: 1; min-width: 0; text-align: left; }
+.user-panel .up-name {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.user-panel .up-status {
+  font-size: 11px;
+  color: var(--text-dim);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.user-panel .up-controls { display: flex; gap: 2px; }
+.user-panel .up-btn {
+  width: 32px;
+  height: 32px;
+  border-radius: var(--r-sm);
+  color: var(--text-dim);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background .12s, color .12s;
+  position: relative;
+}
+.user-panel .up-btn:hover { background: var(--bg-hover); color: var(--text); }
+.user-panel .up-btn.muted { color: var(--danger); background: rgba(242,63,67,0.12); }
+.user-panel .up-btn.muted::after {
+  content: '';
+  position: absolute;
+  width: 20px;
+  height: 2px;
+  background: var(--danger);
+  transform: rotate(-45deg);
+  border-radius: 1px;
+}
+
+/* Status menu popover */
+.status-popover {
+  position: absolute;
+  bottom: 62px;
+  left: 8px;
+  width: 240px;
+  background: var(--bg-floating);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--r);
+  padding: 8px;
+  box-shadow: 0 12px 32px rgba(0,0,0,0.6);
+  z-index: 60;
+}
+.status-popover .sp-title {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .04em;
+  color: var(--text-mut);
+  padding: 4px 8px 6px;
+}
+.status-popover .sp-opt {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 7px 8px;
+  border-radius: var(--r-sm);
+  font-size: 13px;
+  color: var(--text-dim);
+  transition: background .1s, color .1s;
+}
+.status-popover .sp-opt:hover {
+  background: var(--bg-hover);
+  color: var(--text);
+}
+.status-popover .sp-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+}
+.status-popover .sp-custom {
+  margin-top: 6px;
+  padding-top: 6px;
+  border-top: 1px solid var(--border);
+  display: flex;
+  gap: 4px;
+}
+.status-popover .sp-custom input {
+  flex: 1;
+  background: var(--bg-input);
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+  padding: 5px 8px;
+  color: var(--text);
+  font-size: 12px;
+  outline: none;
+}
+.status-popover .sp-custom button {
+  padding: 5px 8px;
+  border-radius: var(--r-sm);
+  background: var(--accent);
+  color: #fff;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+/* ============================================================
+   MAIN AREA
+============================================================ */
+.main {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg-main);
+  min-width: 0;
+  position: relative;
+}
+.main::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(ellipse 800px 400px at 30% 0%, rgba(124,92,255,0.06), transparent 70%);
+  pointer-events: none;
+}
+
+/* Chat header */
+.chat-header {
+  height: 52px;
+  padding: 0 16px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+  background: var(--bg-main);
+  z-index: 10;
+  position: relative;
+  gap: 12px;
+}
+.chat-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  flex: 1;
+}
+.mobile-nav-btn {
+  display: none;
+  width: 32px;
+  height: 32px;
+  border-radius: var(--r-sm);
+  color: var(--text-dim);
+  align-items: center;
+  justify-content: center;
+}
+.mobile-nav-btn:hover { background: var(--bg-hover); color: var(--text); }
+.chat-title .ch-icon {
+  width: 22px;
+  height: 22px;
+  color: var(--text-mut);
+  flex-shrink: 0;
+}
+.chat-title h2 {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.chat-title .ch-desc {
+  font-size: 13px;
+  color: var(--text-mut);
+  padding-left: 10px;
+  border-left: 1px solid var(--border);
+  margin-left: 4px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.chat-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.chat-actions button {
+  width: 34px;
+  height: 34px;
+  border-radius: var(--r-sm);
+  color: var(--text-dim);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background .12s, color .12s;
+  position: relative;
+}
+.chat-actions button:hover,
+.chat-actions button.active {
+  background: var(--bg-hover);
+  color: var(--text);
+}
+.chat-actions button .pin-dot {
+  position: absolute;
+  top: 5px;
+  right: 5px;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--accent);
+}
+.header-search-wrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+.header-search-input {
+  width: 156px;
+  height: 28px;
+  background: var(--bg-deep);
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+  padding: 0 28px 0 10px;
+  font-size: 13px;
+  color: var(--text);
+  outline: none;
+  transition: width .2s ease, border-color .15s;
+}
+.header-search-input:focus {
+  width: 220px;
+  border-color: var(--accent);
+}
+
+/* Floating Popovers (Pinned & Search Results) */
+.header-popover {
+  position: absolute;
+  top: 56px;
+  right: 16px;
+  width: 360px;
+  max-width: calc(100vw - 32px);
+  max-height: 440px;
+  background: var(--bg-floating);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--r);
+  box-shadow: 0 16px 40px rgba(0,0,0,0.6);
+  z-index: 45;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+.header-popover .hp-head {
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--border);
+  font-size: 13px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: var(--bg-sidebar);
+}
+.header-popover .hp-body {
+  padding: 10px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.pin-card {
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+  padding: 10px;
+  font-size: 13px;
+}
+.pin-card .pc-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 4px;
+  font-weight: 700;
+}
+.pin-card .pc-text { color: var(--text-dim); line-height: 1.4; }
+
+/* Welcome Banner at top of channel */
+.channel-welcome {
+  padding: 24px 16px 12px;
+}
+.channel-welcome .cw-icon {
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  background: var(--bg-elevated);
+  color: var(--accent-hover);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 12px;
+}
+.channel-welcome h3 {
+  font-size: 24px;
+  font-weight: 800;
+  letter-spacing: -.02em;
+  margin-bottom: 4px;
+}
+.channel-welcome p {
+  font-size: 14px;
+  color: var(--text-dim);
+}
+
+/* Messages */
+.messages {
+  flex: 1;
+  overflow-y: auto;
+  padding: 8px 0 8px;
+  position: relative;
+  z-index: 1;
+  user-select: text;
+}
+.date-divider {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 16px;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .04em;
+  color: var(--text-mut);
+}
+.date-divider::before,
+.date-divider::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: var(--border);
+}
+
+.msg {
+  padding: var(--msg-gap) 16px;
+  display: flex;
+  gap: 14px;
+  position: relative;
+  transition: background .08s;
+}
+.msg:hover { background: rgba(0,0,0,0.14); }
+.msg.pinned-msg {
+  border-left: 2px solid var(--idle);
+  background: rgba(240,178,50,0.03);
+}
+
+.msg .avatar {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 15px;
+  margin-top: 2px;
+  color: #fff;
+  cursor: pointer;
+  user-select: none;
+  transition: transform .12s;
+}
+.msg .avatar:hover { transform: scale(1.05); }
+.msg .body { flex: 1; min-width: 0; }
+.msg .head {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  margin-bottom: 2px;
+  flex-wrap: wrap;
+}
+.msg .author {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text);
+  cursor: pointer;
+}
+.msg .author:hover { text-decoration: underline; }
+.msg .role-tag {
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  padding: 1px 5px;
+  border-radius: 4px;
+  background: var(--accent-soft);
+  color: var(--accent-hover);
+  letter-spacing: .04em;
+}
+.msg .pin-badge {
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--idle);
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+}
+.msg .time {
+  font-size: 11.5px;
+  color: var(--text-mut);
+  font-weight: 500;
+}
+.msg .content {
+  font-size: 15px;
+  line-height: 1.5;
+  color: #dcdce5;
+  word-wrap: break-word;
+  margin-bottom: 4px;
+}
+.msg .content code {
+  background: var(--bg-deep);
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-size: 13px;
+  font-family: var(--mono);
+  color: #e5a8ff;
+  border: 1px solid rgba(255,255,255,0.05);
+}
+.msg .content .mention-chip {
+  background: var(--accent-soft);
+  color: var(--accent-hover);
+  padding: 1px 5px;
+  border-radius: 4px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.msg .content .mention-chip:hover {
+  background: var(--accent);
+  color: #fff;
+}
+
+/* Reply reference */
+.msg .reply-ref {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--text-mut);
+  margin-bottom: 4px;
+}
+.msg .reply-ref .bar {
+  width: 24px;
+  height: 8px;
+  border-left: 2px solid var(--text-mut);
+  border-top: 2px solid var(--text-mut);
+  border-radius: 4px 0 0 0;
+  opacity: .6;
+}
+.msg .reply-ref .author-ref { color: var(--text-dim); font-weight: 600; cursor: pointer; }
+
+/* Reactions */
+.reactions {
+  display: flex;
+  gap: 5px;
+  margin-top: 5px;
+  flex-wrap: wrap;
+}
+.reaction {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 8px;
+  border-radius: 8px;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  font-size: 13px;
+  color: var(--text-dim);
+  cursor: pointer;
+  transition: all .12s;
+}
+.reaction:hover { border-color: var(--text-mut); transform: translateY(-1px); }
+.reaction.mine {
+  background: var(--accent-soft);
+  border-color: var(--accent);
+  color: var(--accent-hover);
+}
+.reaction .count { font-weight: 700; font-size: 12px; }
+
+/* Attachment & Poll cards */
+.attachment {
+  margin-top: 6px;
+  border-radius: var(--r);
+  overflow: hidden;
+  max-width: 440px;
+  border: 1px solid var(--border);
+  background: var(--bg-elevated);
+}
+.attachment .att-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 12px;
+  background: var(--bg-sidebar);
+  border-bottom: 1px solid var(--border);
+  font-size: 12px;
+  color: var(--text-dim);
+}
+.attachment .att-header .dot { width: 10px; height: 10px; border-radius: 50%; }
+.attachment .att-preview {
+  height: 185px;
+  background: linear-gradient(135deg, #1e1e2a 0%, #2a1e3f 50%, #1e2a3f 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  overflow: hidden;
+}
+.attachment .att-preview::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(circle at 20% 30%, rgba(124,92,255,0.32), transparent 40%),
+    radial-gradient(circle at 80% 70%, rgba(91,141,239,0.32), transparent 40%);
+}
+.attachment .att-preview .mock-ui {
+  position: relative;
+  width: 82%;
+  height: 74%;
+  border-radius: 8px;
+  background: rgba(10,10,18,0.65);
+  backdrop-filter: blur(6px);
+  border: 1px solid rgba(255,255,255,0.12);
+  display: flex;
+  flex-direction: column;
+  padding: 12px;
+  gap: 6px;
+}
+.attachment .att-preview .mock-ui .line {
+  height: 7px;
+  border-radius: 3px;
+  background: rgba(255,255,255,0.15);
+}
+.attachment .att-preview .mock-ui .line:nth-child(1) { width: 42%; background: var(--accent); opacity: .85; }
+.attachment .att-preview .mock-ui .line:nth-child(2) { width: 72%; }
+.attachment .att-preview .mock-ui .line:nth-child(3) { width: 55%; }
+.attachment .att-preview .mock-ui .line:nth-child(4) { width: 82%; opacity: .5; }
+
+.poll-card {
+  margin-top: 6px;
+  max-width: 420px;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: var(--r);
+  padding: 12px;
+}
+.poll-card .poll-q {
+  font-size: 14px;
+  font-weight: 700;
+  margin-bottom: 8px;
+  color: var(--text);
+}
+.poll-opt {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 10px;
+  margin-bottom: 6px;
+  border-radius: var(--r-sm);
+  background: var(--bg-main);
+  border: 1px solid var(--border);
+  font-size: 13px;
+  color: var(--text-dim);
+  position: relative;
+  overflow: hidden;
+  transition: border-color .12s;
+}
+.poll-opt:hover { border-color: var(--accent); color: var(--text); }
+.poll-opt.voted { border-color: var(--accent); color: var(--text); font-weight: 600; }
+.poll-opt .poll-bar {
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  background: var(--accent-soft);
+  z-index: 0;
+  transition: width .25s ease;
+}
+.poll-opt span { position: relative; z-index: 1; }
+
+/* Hover actions */
+.msg .hover-actions {
+  position: absolute;
+  top: -12px;
+  right: 16px;
+  display: flex;
+  align-items: center;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--r-sm);
+  overflow: hidden;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity .1s;
+  box-shadow: 0 4px 14px rgba(0,0,0,0.35);
+  z-index: 5;
+}
+.msg:hover .hover-actions { opacity: 1; pointer-events: auto; }
+.msg .hover-actions button {
+  width: 30px;
+  height: 30px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-dim);
+  font-size: 14px;
+  transition: background .12s, color .12s, transform .1s;
+}
+.msg .hover-actions button:hover {
+  background: var(--bg-hover);
+  color: var(--text);
+  transform: scale(1.1);
+}
+
+/* System & Boost message */
+.msg.system .content { color: var(--text-mut); font-style: italic; }
+.msg.system .avatar { background: var(--bg-elevated); color: var(--online); }
+.msg.boost-msg {
+  background: linear-gradient(90deg, rgba(255,115,250,0.1), transparent);
+  border-left: 3px solid var(--boost);
+}
+.msg.boost-msg .avatar {
+  background: rgba(255,115,250,0.2);
+  color: var(--boost);
+}
+
+/* Typing & Reply Banner */
+.typing-indicator {
+  padding: 4px 16px 6px;
+  font-size: 12.5px;
+  color: var(--text-dim);
+  height: 24px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.typing-indicator .dots { display: inline-flex; gap: 3px; }
+.typing-indicator .dot {
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: var(--text-dim);
+  animation: typing 1.2s infinite;
+}
+.typing-indicator .dot:nth-child(2) { animation-delay: .2s; }
+.typing-indicator .dot:nth-child(3) { animation-delay: .4s; }
+@keyframes typing {
+  0%, 60%, 100% { opacity: .3; transform: translateY(0); }
+  30% { opacity: 1; transform: translateY(-3px); }
+}
+
+.reply-banner {
+  margin: 0 16px;
+  padding: 7px 12px;
+  background: var(--bg-sidebar);
+  border: 1px solid var(--border);
+  border-bottom: none;
+  border-radius: var(--r) var(--r) 0 0;
+  font-size: 12.5px;
+  color: var(--text-dim);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.reply-banner strong { color: var(--accent-hover); }
+.reply-banner button {
+  color: var(--text-mut);
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+.reply-banner button:hover { color: var(--text); background: var(--bg-hover); }
+
+/* Message input */
+.message-form-wrap {
+  padding: 0 16px 16px;
+  flex-shrink: 0;
+  position: relative;
+}
+.message-form {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--bg-input);
+  border-radius: var(--r);
+  padding: 0 10px;
+  height: 46px;
+  transition: box-shadow .15s, background .15s, border-color .15s;
+  border: 1px solid var(--border);
+}
+.message-form:focus-within {
+  background: var(--bg-elevated);
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-soft);
+}
+.message-form .add-btn {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: var(--text-dim);
+  color: var(--bg-deep);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background .12s, transform .12s;
+  flex-shrink: 0;
+}
+.message-form .add-btn:hover { background: var(--text); transform: rotate(90deg); }
+.message-form input {
+  flex: 1;
+  background: transparent;
+  border: none;
+  outline: none;
+  color: var(--text);
+  font-size: 15px;
+  padding: 0;
+}
+.message-form input::placeholder { color: var(--text-mut); }
+.message-form .icon-btn {
+  width: 32px;
+  height: 32px;
+  border-radius: var(--r-sm);
+  color: var(--text-dim);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: color .12s, background .12s;
+  flex-shrink: 0;
+}
+.message-form .icon-btn:hover { color: var(--text); background: var(--bg-hover); }
+
+/* Composer Popovers (Attach & Emoji) */
+.composer-popover {
+  position: absolute;
+  bottom: 68px;
+  background: var(--bg-floating);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--r);
+  padding: 8px;
+  box-shadow: 0 14px 36px rgba(0,0,0,0.6);
+  z-index: 50;
+}
+.attach-popover {
+  left: 16px;
+  width: 230px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.attach-popover button {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px;
+  border-radius: var(--r-sm);
+  font-size: 13px;
+  color: var(--text-dim);
+  transition: background .1s, color .1s;
+}
+.attach-popover button:hover {
+  background: var(--accent);
+  color: #fff;
+}
+.emoji-popover {
+  right: 16px;
+  width: 280px;
+}
+.emoji-popover .ep-title {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  color: var(--text-mut);
+  padding: 2px 4px 6px;
+}
+.emoji-grid {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 4px;
+}
+.emoji-grid button {
+  height: 38px;
+  border-radius: var(--r-sm);
+  font-size: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background .1s, transform .1s;
+}
+.emoji-grid button:hover {
+  background: var(--bg-hover);
+  transform: scale(1.18);
+}
+
+/* ============================================================
+   HOME / FRIENDS HUB VIEW
+============================================================ */
+.friends-view {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg-main);
+  z-index: 2;
+}
+.friends-tabs {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-left: 12px;
+}
+.friends-tab {
+  padding: 5px 10px;
+  border-radius: var(--r-sm);
+  font-size: 13.5px;
+  font-weight: 600;
+  color: var(--text-dim);
+  transition: background .12s, color .12s;
+}
+.friends-tab:hover { background: var(--bg-hover); color: var(--text); }
+.friends-tab.active { background: var(--bg-active); color: var(--text); }
+.friends-tab.add-friend {
+  background: var(--online);
+  color: #fff;
+}
+.friends-list-wrap {
+  flex: 1;
+  overflow-y: auto;
+  padding: 20px;
+  max-width: 840px;
+}
+.friends-list-wrap h4 {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .05em;
+  color: var(--text-mut);
+  margin-bottom: 12px;
+}
+.friend-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 12px;
+  border-top: 1px solid var(--border);
+  border-radius: var(--r-sm);
+  transition: background .12s;
+}
+.friend-row:hover { background: var(--bg-hover); }
+.friend-row .fr-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.friend-row .fr-actions {
+  display: flex;
+  gap: 8px;
+}
+.friend-row .fr-btn {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: var(--bg-elevated);
+  color: var(--text-dim);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background .12s, color .12s;
+}
+.friend-row .fr-btn:hover { background: var(--accent); color: #fff; }
+
+/* ============================================================
+   MEMBERS SIDEBAR
+============================================================ */
+.members {
+  width: 244px;
+  flex-shrink: 0;
+  background: var(--bg-sidebar);
+  border-left: 1px solid var(--border);
+  overflow-y: auto;
+  padding: 16px 8px;
+  z-index: 12;
+}
+.member-group { margin-bottom: 20px; }
+.member-group h3 {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .05em;
+  color: var(--text-mut);
+  padding: 0 8px 6px;
+}
+.member {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 8px;
+  border-radius: var(--r-sm);
+  cursor: pointer;
+  transition: background .12s;
+}
+.member:hover { background: var(--bg-hover); }
+.member.offline { opacity: .45; }
+.member .m-avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 13px;
+  color: #fff;
+  position: relative;
+  flex-shrink: 0;
+}
+.member .m-avatar::after {
+  content: '';
+  position: absolute;
+  bottom: -1px;
+  right: -1px;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--online);
+  border: 2px solid var(--bg-sidebar);
+}
+.member.offline .m-avatar::after { background: var(--offline); }
+.member.idle .m-avatar::after { background: var(--idle); }
+.member.dnd .m-avatar::after { background: var(--dnd); }
+.member .m-info { min-width: 0; flex: 1; }
+.member .m-name {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-dim);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.member:hover .m-name { color: var(--text); }
+.member .m-name.role { color: var(--accent-hover); }
+.member .m-status {
+  font-size: 11px;
+  color: var(--text-mut);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* ============================================================
+   VOICE STAGE
+============================================================ */
+.voice-view {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg-main);
+  position: relative;
+  overflow: hidden;
+}
+.voice-view::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(ellipse 1000px 600px at 50% 30%, rgba(124,92,255,0.08), transparent 70%);
+  pointer-events: none;
+}
+.voice-stage {
+  flex: 1;
+  padding: 20px;
+  overflow-y: auto;
+  position: relative;
+  z-index: 1;
+}
+
+.stage-with-share {
+  display: grid;
+  grid-template-columns: 1fr 250px;
+  gap: 12px;
+  height: 100%;
+}
+.stage-main-share { min-height: 0; }
+.stage-share-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  overflow-y: auto;
+  padding-right: 4px;
+}
+
+.stage-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  grid-auto-rows: 1fr;
+  gap: 12px;
+  height: 100%;
+}
+
+.tile {
+  position: relative;
+  border-radius: var(--r-lg);
+  overflow: hidden;
+  background: #0e0e17;
+  border: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 170px;
+  transition: border-color .2s, box-shadow .2s;
+}
+.tile.speaking {
+  border-color: var(--online);
+  box-shadow: 0 0 0 2px rgba(35,165,90,0.28), 0 0 24px rgba(35,165,90,0.15);
+}
+.tile.cam-on {
+  background: linear-gradient(135deg, #1b1734 0%, #112438 50%, #1a1228 100%);
+}
+.tile .tile-avatar {
+  width: 88px;
+  height: 88px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 32px;
+  font-weight: 700;
+  color: #fff;
+  position: relative;
+}
+.tile.speaking .tile-avatar::after {
+  content: '';
+  position: absolute;
+  inset: -10px;
+  border-radius: 50%;
+  border: 2px solid var(--online);
+  animation: ring 1.4s infinite;
+}
+@keyframes ring {
+  0% { transform: scale(1); opacity: 1; }
+  100% { transform: scale(1.18); opacity: 0; }
+}
+.tile .tile-label {
+  position: absolute;
+  bottom: 10px;
+  left: 10px;
+  background: rgba(0,0,0,0.72);
+  backdrop-filter: blur(6px);
+  padding: 5px 10px;
+  border-radius: 8px;
+  font-size: 12px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.tile .tile-label .mic { width: 13px; height: 13px; color: var(--text-dim); }
+.tile .tile-label .mic.muted { color: var(--danger); }
+.tile .tile-you {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  background: var(--accent);
+  color: #fff;
+  font-size: 10px;
+  font-weight: 700;
+  padding: 3px 7px;
+  border-radius: 4px;
+  text-transform: uppercase;
+  letter-spacing: .05em;
+}
+.tile.share {
+  padding: 0;
+  align-items: stretch;
+  justify-content: stretch;
+}
+.mock-code {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  background: #0d0d14;
+  font-family: var(--mono);
+  font-size: 13px;
+}
+.mock-code .code-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 10px 14px;
+  background: #13131c;
+  border-bottom: 1px solid rgba(255,255,255,0.05);
+}
+.mock-code .code-header .dot { width: 11px; height: 11px; border-radius: 50%; }
+.mock-code .code-header .filename {
+  margin-left: 12px;
+  font-size: 12px;
+  color: var(--text-dim);
+  font-family: var(--font);
+}
+.mock-code .code-body {
+  padding: 16px 20px;
+  overflow: auto;
+  line-height: 1.7;
+  white-space: pre;
+}
+.mock-code .kw { color: #c792ea; }
+.mock-code .str { color: #c3e88d; }
+.mock-code .fn { color: #82aaff; }
+.mock-code .num { color: #f78c6c; }
+.mock-code .com { color: #6b6b7d; font-style: italic; }
+
+/* Floating Stage Reactions */
+.stage-reaction-float {
+  position: absolute;
+  bottom: 85px;
+  left: 50%;
+  font-size: 32px;
+  pointer-events: none;
+  animation: floatUp 1.6s ease-out forwards;
+  z-index: 30;
+}
+@keyframes floatUp {
+  0% { opacity: 1; transform: translate(-50%, 0) scale(0.7); }
+  50% { opacity: 1; transform: translate(calc(-50% + 20px), -70px) scale(1.2); }
+  100% { opacity: 0; transform: translate(calc(-50% - 15px), -140px) scale(1); }
+}
+
+/* Voice control bar */
+.voice-controls {
+  padding: 14px 16px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 10px;
+  background: var(--bg-main);
+  border-top: 1px solid var(--border);
+  flex-shrink: 0;
+  position: relative;
+  z-index: 2;
+}
+.voice-controls .vc-btn {
+  width: 46px;
+  height: 46px;
+  border-radius: 50%;
+  background: var(--bg-elevated);
+  color: var(--text);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all .15s;
+  position: relative;
+}
+.voice-controls .vc-btn:hover { background: var(--bg-input); transform: translateY(-2px); }
+.voice-controls .vc-btn.active { background: var(--accent); color: #fff; }
+.voice-controls .vc-btn.speaking-on { background: var(--online); color: #fff; }
+.voice-controls .vc-btn.danger { background: var(--danger); color: #fff; }
+.voice-controls .vc-btn.danger:hover { background: #d13034; }
+
+/* ============================================================
+   USER PROFILE POPOVER & MODALS
+============================================================ */
+.profile-card-popover {
+  position: fixed;
+  width: 300px;
+  background: var(--bg-floating);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--r-lg);
+  overflow: hidden;
+  box-shadow: 0 20px 50px rgba(0,0,0,0.7);
+  z-index: 90;
+}
+.profile-card-popover .pc-banner {
+  height: 76px;
+  width: 100%;
+}
+.profile-card-popover .pc-avatar-wrap {
+  padding: 0 16px;
+  margin-top: -36px;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+}
+.profile-card-popover .pc-av {
+  width: 68px;
+  height: 68px;
+  border-radius: 50%;
+  border: 5px solid var(--bg-floating);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 26px;
+  font-weight: 800;
+  color: #fff;
+}
+.profile-card-popover .pc-body {
+  padding: 12px 16px 16px;
+}
+.profile-card-popover .pc-name {
+  font-size: 18px;
+  font-weight: 800;
+}
+.profile-card-popover .pc-handle {
+  font-size: 12.5px;
+  color: var(--text-mut);
+  margin-bottom: 10px;
+}
+.profile-card-popover .pc-box {
+  background: var(--bg-sidebar);
+  border: 1px solid var(--border);
+  border-radius: var(--r);
+  padding: 10px;
+  margin-bottom: 10px;
+  font-size: 12.5px;
+}
+.profile-card-popover .pc-box h5 {
+  font-size: 10.5px;
+  text-transform: uppercase;
+  letter-spacing: .05em;
+  color: var(--text-mut);
+  margin-bottom: 4px;
+}
+.profile-card-popover .pc-dm-input {
+  width: 100%;
+  background: var(--bg-input);
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+  padding: 8px 10px;
+  color: var(--text);
+  font-size: 13px;
+  outline: none;
+}
+.profile-card-popover .pc-dm-input:focus { border-color: var(--accent); }
+
+/* Modal Backdrop & Box */
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.72);
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 100;
+  padding: 16px;
+}
+.modal-box {
+  width: 100%;
+  max-width: 480px;
+  background: var(--bg-sidebar);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--r-lg);
+  overflow: hidden;
+  box-shadow: 0 24px 60px rgba(0,0,0,0.75);
+}
+.modal-head {
+  padding: 18px 20px 12px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid var(--border);
+}
+.modal-head h3 { font-size: 18px; font-weight: 800; }
+.modal-body { padding: 18px 20px; display: flex; flex-direction: column; gap: 14px; }
+.modal-field label {
+  display: block;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .04em;
+  color: var(--text-dim);
+  margin-bottom: 6px;
+}
+.modal-field input, .modal-field select {
+  width: 100%;
+  background: var(--bg-deep);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--r-sm);
+  padding: 10px 12px;
+  color: var(--text);
+  font-size: 14px;
+  outline: none;
+}
+.modal-field input:focus { border-color: var(--accent); }
+.modal-foot {
+  padding: 14px 20px;
+  background: var(--bg-rail);
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+}
+.btn-secondary {
+  padding: 8px 14px;
+  border-radius: var(--r-sm);
+  color: var(--text-dim);
+  font-size: 13.5px;
+  font-weight: 600;
+}
+.btn-secondary:hover { background: var(--bg-hover); color: var(--text); }
+.btn-primary {
+  padding: 8px 18px;
+  border-radius: var(--r-sm);
+  background: var(--accent);
+  color: #fff;
+  font-size: 13.5px;
+  font-weight: 700;
+  transition: background .12s;
+}
+.btn-primary:hover { background: var(--accent-hover); }
+
+/* Toast Notification */
+.toast-container {
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  z-index: 120;
+  pointer-events: none;
+}
+.toast {
+  background: var(--bg-floating);
+  border: 1px solid var(--accent);
+  color: var(--text);
+  padding: 10px 16px;
+  border-radius: var(--r);
+  font-size: 13px;
+  font-weight: 600;
+  box-shadow: 0 10px 28px rgba(0,0,0,0.5);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+
+/* Grouped consecutive messages (Discord style) */
+.msg.grouped {
+  padding-top: 1px;
+  padding-bottom: 1px;
+}
+.msg.grouped .avatar-col {
+  width: 40px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.msg.grouped .hover-time {
+  font-size: 10px;
+  color: var(--text-mut);
+  opacity: 0;
+  font-family: var(--mono);
+  transition: opacity .1s;
+}
+.msg.grouped:hover .hover-time {
+  opacity: 1;
+}
+body[data-density="compact"] .msg.grouped .avatar-col {
+  width: 28px;
+}
+
+/* Uploaded real image attachment */
+.uploaded-img-att {
+  margin-top: 6px;
+  max-width: 420px;
+  max-height: 280px;
+  border-radius: var(--r);
+  border: 1px solid var(--border-strong);
+  display: block;
+  object-fit: cover;
+}
+
+/* Real WebRTC Video inside voice tile */
+.real-rtc-video {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  background: #000;
+}
+.tile .tile-avatar,
+.tile .tile-label,
+.tile .tile-you {
+  z-index: 2;
+}
+
+/* Header Free Setup Pill */
+.free-setup-pill {
+  width: auto !important;
+  padding: 0 10px !important;
+  height: 28px !important;
+  border-radius: 99px !important;
+  background: rgba(35,165,90,0.14) !important;
+  border: 1px solid rgba(35,165,90,0.35) !important;
+  color: #4ade80 !important;
+  font-size: 11.5px !important;
+  font-weight: 700 !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 6px !important;
+  margin-right: 4px;
+}
+.free-setup-pill:hover {
+  background: rgba(35,165,90,0.25) !important;
+  color: #fff !important;
+}
+.free-setup-pill .conn-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--online);
+  box-shadow: 0 0 8px var(--online);
+}
+
+/* Autocomplete Popover (@mentions and #channels) */
+.autocomplete-popover {
+  left: 16px;
+  right: 16px;
+  bottom: 66px;
+  max-width: 340px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.autocomplete-popover .ac-head {
+  font-size: 10.5px;
+  font-weight: 700;
+  text-transform: uppercase;
+  color: var(--text-mut);
+  padding: 4px 8px;
+}
+.autocomplete-popover button {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 7px 10px;
+  border-radius: var(--r-sm);
+  font-size: 13px;
+  color: var(--text-dim);
+}
+.autocomplete-popover button:hover {
+  background: var(--accent);
+  color: #fff;
+}
+.code-cmd-box {
+  background: var(--bg-deep);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--r-sm);
+  padding: 10px 12px;
+  font-family: var(--mono);
+  font-size: 12px;
+  color: #c3e88d;
+  overflow-x: auto;
+  white-space: pre;
+  line-height: 1.5;
+}
+
+
+/* Drag-and-drop overlay */
+.dropzone-overlay {
+  position: fixed;
+  inset: 12px;
+  background: rgba(11, 11, 20, 0.86);
+  backdrop-filter: blur(6px);
+  border: 3px dashed var(--accent);
+  border-radius: var(--r-lg);
+  z-index: 150;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  pointer-events: none;
+}
+.dropzone-overlay h3 {
+  font-size: 22px;
+  font-weight: 800;
+  color: var(--text);
+}
+.dropzone-overlay p {
+  font-size: 14px;
+  color: var(--accent-hover);
+}
+.edited-tag {
+  font-size: 10.5px;
+  color: var(--text-mut);
+  margin-left: 4px;
+  font-style: italic;
+}
+.soundboard-bar {
+  display: flex;
+  gap: 6px;
+  justify-content: center;
+  padding: 8px 16px 0;
+  background: var(--bg-main);
+  flex-wrap: wrap;
+}
+.sb-fx-btn {
+  padding: 5px 10px;
+  border-radius: 99px;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-dim);
+  transition: all .12s;
+}
+.sb-fx-btn:hover {
+  border-color: var(--accent);
+  color: var(--text);
+  transform: translateY(-1px);
+}
+
+/* ============================================================
+   RESPONSIVE
+============================================================ */
+@media (max-width: 1080px) {
+  .members {
+    position: fixed;
+    top: 52px;
+    right: 0;
+    bottom: 0;
+    box-shadow: -12px 0 32px rgba(0,0,0,0.5);
+  }
+  .members.collapsed-panel { display: none; }
+  .stage-with-share { grid-template-columns: 1fr; }
+}
+@media (max-width: 780px) {
+  .mobile-nav-btn { display: flex; }
+  .chat-title .ch-desc { display: none; }
+  .header-search-input { width: 110px; }
+  .header-search-input:focus { width: 150px; }
+  .rail, .sidebar {
+    position: fixed;
+    top: 0;
+    bottom: 0;
+    transform: translateX(-340px);
+    transition: transform .22s ease;
+  }
+  .sidebar { left: 72px; }
+  .app.mobile-open .rail,
+  .app.mobile-open .sidebar {
+    transform: translateX(0);
+  }
+}
+</style>
+</head>
+<body>
+
+<div class="app" id="app-root">
+
+  <!-- ============================================================
+       SERVER RAIL
+  ============================================================ -->
+  <nav class="rail" id="server-rail">
+    <button class="server-icon home" id="rail-home-btn" title="Início — Mensagens Diretas e Amigos">
+      <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+        <circle cx="12" cy="12" r="3" fill="currentColor"/>
+        <ellipse cx="12" cy="12" rx="10" ry="4" transform="rotate(-30 12 12)"/>
+        <circle cx="19" cy="7.5" r="1.5" fill="currentColor"/>
+      </svg>
+    </button>
+
+    <div class="rail-divider"></div>
+
+    <div id="rail-servers-list" style="display:flex;flex-direction:column;gap:8px;align-items:center;">
+      <button class="server-icon active" data-server="orbita" title="Órbita">
+        <span>Ó</span>
+        <span class="badge">3</span>
+      </button>
+      <button class="server-icon has-unread" data-server="designers" title="Designers">DS</button>
+      <button class="server-icon" data-server="gaming" title="Gaming">GG</button>
+      <button class="server-icon" data-server="music" title="Música">♪</button>
+    </div>
+
+    <div class="rail-divider"></div>
+
+    <button class="server-icon action-rail" id="btn-add-server" title="Adicionar servidor">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
+        <line x1="12" y1="5" x2="12" y2="19"/>
+        <line x1="5" y1="12" x2="19" y2="12"/>
+      </svg>
+    </button>
+    <button class="server-icon action-rail" id="btn-explore-servers" title="Explorar comunidades">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="12" cy="12" r="10"/>
+        <polygon points="16.24 7.76 14.12 14.12 7.76 16.24 9.88 9.88 16.24 7.76" fill="currentColor"/>
+      </svg>
+    </button>
+  </nav>
+
+  <!-- ============================================================
+       SIDEBAR
+  ============================================================ -->
+  <aside class="sidebar">
+    <header class="server-header" id="server-header-btn">
+      <h1>
+        <svg class="logo-mark" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+          <circle cx="12" cy="12" r="3" fill="currentColor"/>
+          <ellipse cx="12" cy="12" rx="10" ry="4" transform="rotate(-30 12 12)"/>
+          <circle cx="19" cy="7.5" r="1.5" fill="currentColor"/>
+        </svg>
+        <span id="sidebar-server-title">Órbita</span>
+        <span class="boost-pill" id="sidebar-boost-pill">NVL 3</span>
+      </h1>
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+        <polyline points="6 9 12 15 18 9"/>
+      </svg>
+    </header>
+
+    <!-- Server Dropdown Menu -->
+    <div class="server-dropdown hidden" id="server-dropdown">
+      <button class="boost-item" id="dd-boost-btn">
+        <span>Impulsionar Servidor</span>
+        <span>✦</span>
+      </button>
+      <div class="dd-sep"></div>
+      <button id="dd-invite-btn">
+        <span>Convidar Pessoas</span>
+        <span>+</span>
+      </button>
+      <button id="dd-create-channel-btn">
+        <span>Criar Canal</span>
+        <span>#</span>
+      </button>
+      <button id="dd-settings-btn">
+        <span>Aparência & Configurações</span>
+        <span>⚙</span>
+      </button>
+    </div>
+
+    <!-- Server Boost Banner -->
+    <div class="server-banner" id="server-banner-box">
+      <div class="sb-info">
+        <strong id="banner-title">14 Impulsos Ativos</strong>
+        <span>Áudio 384kbps & Stream 1080p 60fps</span>
+      </div>
+      <button class="sb-btn" id="banner-action-btn">Impulsionar</button>
+    </div>
+
+    <div class="channels-scroll" id="sidebar-scroll-content">
+
+      <!-- Categoria: TEXTUAIS -->
+      <div class="category">
+        <div class="category-header-row">
+          <button class="category-header" data-cat>
+            <svg class="chev" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+              <polyline points="6 9 12 15 18 9"/>
+            </svg>
+            <span>Textuais</span>
+          </button>
+          <button class="cat-add-btn" data-add-channel="text" title="Criar canal de texto">+</button>
+        </div>
+        <div class="channel-list" id="text-channel-list">
+          <a class="channel active" data-channel="geral" data-type="text">
+            <svg class="ch-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+              <line x1="4" y1="9" x2="20" y2="9"/>
+              <line x1="4" y1="15" x2="20" y2="15"/>
+              <line x1="10" y1="3" x2="8" y2="21"/>
+              <line x1="16" y1="3" x2="14" y2="21"/>
+            </svg>
+            geral
+          </a>
+          <a class="channel unread" data-channel="avisos" data-type="text">
+            <svg class="ch-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+              <line x1="4" y1="9" x2="20" y2="9"/>
+              <line x1="4" y1="15" x2="20" y2="15"/>
+              <line x1="10" y1="3" x2="8" y2="21"/>
+              <line x1="16" y1="3" x2="14" y2="21"/>
+            </svg>
+            avisos
+            <span class="badge-count">2</span>
+          </a>
+          <a class="channel" data-channel="design" data-type="text">
+            <svg class="ch-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+              <line x1="4" y1="9" x2="20" y2="9"/>
+              <line x1="4" y1="15" x2="20" y2="15"/>
+              <line x1="10" y1="3" x2="8" y2="21"/>
+              <line x1="16" y1="3" x2="14" y2="21"/>
+            </svg>
+            design
+          </a>
+          <a class="channel" data-channel="dev" data-type="text">
+            <svg class="ch-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+              <line x1="4" y1="9" x2="20" y2="9"/>
+              <line x1="4" y1="15" x2="20" y2="15"/>
+              <line x1="10" y1="3" x2="8" y2="21"/>
+              <line x1="16" y1="3" x2="14" y2="21"/>
+            </svg>
+            dev
+          </a>
+          <a class="channel" data-channel="random" data-type="text">
+            <svg class="ch-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+              <line x1="4" y1="9" x2="20" y2="9"/>
+              <line x1="4" y1="15" x2="20" y2="15"/>
+              <line x1="10" y1="3" x2="8" y2="21"/>
+              <line x1="16" y1="3" x2="14" y2="21"/>
+            </svg>
+            aleatório
+          </a>
+        </div>
+      </div>
+
+      <!-- Categoria: VOZ -->
+      <div class="category">
+        <div class="category-header-row">
+          <button class="category-header" data-cat>
+            <svg class="chev" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+              <polyline points="6 9 12 15 18 9"/>
+            </svg>
+            <span>Voz</span>
+          </button>
+          <button class="cat-add-btn" data-add-channel="voice" title="Criar canal de voz">+</button>
+        </div>
+        <div class="channel-list" id="voice-channel-list">
+          <a class="channel" data-channel="principal" data-type="voice">
+            <svg class="ch-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/>
+              <path d="M15.54 8.46a5 5 0 0 1 0 7.07"/>
+              <path d="M19.07 4.93a10 10 0 0 1 0 14.14"/>
+            </svg>
+            Sala Principal
+            <span class="live-pill">AO VIVO</span>
+          </a>
+          <div class="voice-tree" id="voice-tree-principal"></div>
+
+          <a class="channel" data-channel="musica" data-type="voice">
+            <svg class="ch-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/>
+              <path d="M15.54 8.46a5 5 0 0 1 0 7.07"/>
+              <path d="M19.07 4.93a10 10 0 0 1 0 14.14"/>
+            </svg>
+            Música
+          </a>
+          <div class="voice-tree" id="voice-tree-musica"></div>
+
+          <a class="channel" data-channel="foco" data-type="voice">
+            <svg class="ch-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/>
+              <path d="M15.54 8.46a5 5 0 0 1 0 7.07"/>
+              <path d="M19.07 4.93a10 10 0 0 1 0 14.14"/>
+            </svg>
+            Foco
+          </a>
+          <div class="voice-tree" id="voice-tree-foco"></div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- DM List (shown when Home is active) -->
+    <div class="channels-scroll hidden" id="dm-scroll-content">
+      <button class="dm-search-btn" id="dm-quick-find">
+        <span>Encontrar ou começar conversa</span>
+        <kbd style="font-size:10px;background:var(--bg-elevated);padding:2px 5px;border-radius:4px;">Ctrl+K</kbd>
+      </button>
+      <div class="dm-item active" id="dm-friends-hub-btn">
+        <div class="dm-av" style="background:var(--accent)">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
+            <circle cx="9" cy="7" r="4"/>
+            <path d="M23 21v-2a4 4 0 0 0-3-3.87"/>
+            <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+          </svg>
+        </div>
+        <div style="font-weight:700;font-size:14px;">Amigos</div>
+      </div>
+      <div style="padding:12px 16px 4px;font-size:11px;font-weight:700;text-transform:uppercase;color:var(--text-mut);letter-spacing:.05em;">
+        Mensagens Diretas
+      </div>
+      <div id="dm-users-list"></div>
+    </div>
+
+    <!-- Voice connected bar -->
+    <div class="voice-bar hidden" id="voice-bar">
+      <div class="vb-top">
+        <div class="vb-status">
+          <span class="dot"></span>
+          Voz conectada
+        </div>
+        <span class="vb-ping">18 ms • RTC</span>
+      </div>
+      <div class="vb-name" id="voice-bar-name" title="Clique para voltar ao palco de voz">Sala Principal / Órbita</div>
+      <div class="vb-actions">
+        <button class="vb-btn" id="vb-mic" title="Silenciar microfone">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+            <rect x="9" y="2" width="6" height="12" rx="3"/>
+            <path d="M5 10v2a7 7 0 0 0 14 0v-2"/>
+            <line x1="12" y1="19" x2="12" y2="22"/>
+          </svg>
+        </button>
+        <button class="vb-btn" id="vb-video" title="Ativar câmera">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <polygon points="23 7 16 12 23 17 23 7"/>
+            <rect x="1" y="5" width="15" height="14" rx="2"/>
+          </svg>
+        </button>
+        <button class="vb-btn danger" id="vb-leave" title="Desconectar">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M10.68 13.31a16 16 0 0 0 3.41 2.6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7 2 2 0 0 1 1.72 2v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91"/>
+            <line x1="23" y1="1" x2="1" y2="23"/>
+          </svg>
+        </button>
+      </div>
+    </div>
+
+    <!-- User panel -->
+    <div class="user-panel">
+      <button class="up-profile-trigger" id="up-profile-btn" title="Alterar status e perfil">
+        <div class="up-avatar">
+          <span>V</span>
+          <span class="status-dot" id="self-status-dot"></span>
+        </div>
+        <div class="up-info">
+          <div class="up-name">Você</div>
+          <div class="up-status" id="self-status-text">Disponível</div>
+        </div>
+      </button>
+      <div class="up-controls">
+        <button class="up-btn" id="up-mic-btn" title="Microfone">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+            <rect x="9" y="2" width="6" height="12" rx="3"/>
+            <path d="M5 10v2a7 7 0 0 0 14 0v-2"/>
+            <line x1="12" y1="19" x2="12" y2="22"/>
+          </svg>
+        </button>
+        <button class="up-btn" id="up-deafen-btn" title="Fones">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M3 18v-6a9 9 0 0 1 18 0v6"/>
+            <path d="M21 19a2 2 0 0 1-2 2h-1a2 2 0 0 1-2-2v-3a2 2 0 0 1 2-2h3zM3 19a2 2 0 0 0 2 2h1a2 2 0 0 0 2-2v-3a2 2 0 0 0-2-2H3z"/>
+          </svg>
+        </button>
+        <button class="up-btn" id="up-settings-btn" title="Configurações">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="3"/>
+            <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+          </svg>
+        </button>
+      </div>
+
+      <!-- Status Popover -->
+      <div class="status-popover hidden" id="status-popover">
+        <div class="sp-title">Definir Status</div>
+        <button class="sp-opt" data-status="online" data-label="Disponível">
+          <span class="sp-dot" style="background:var(--online)"></span> Disponível
+        </button>
+        <button class="sp-opt" data-status="idle" data-label="Ausente">
+          <span class="sp-dot" style="background:var(--idle)"></span> Ausente
+        </button>
+        <button class="sp-opt" data-status="dnd" data-label="Não Perturbe">
+          <span class="sp-dot" style="background:var(--dnd)"></span> Não Perturbe
+        </button>
+        <button class="sp-opt" data-status="offline" data-label="Invisível">
+          <span class="sp-dot" style="background:var(--offline)"></span> Invisível
+        </button>
+        <div class="sp-custom">
+          <input type="text" id="custom-status-input" placeholder="Status personalizado...">
+          <button id="save-custom-status-btn">OK</button>
+        </div>
+      </div>
+    </div>
+  </aside>
+
+  <!-- ============================================================
+       MAIN AREA
+  ============================================================ -->
+  <main class="main">
+
+    <!-- CHAT VIEW -->
+    <div class="voice-view" id="chat-view" style="background: transparent;">
+      <header class="chat-header">
+        <div class="chat-title">
+          <button class="mobile-nav-btn" id="mobile-menu-btn" title="Menu de Canais">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+              <line x1="3" y1="6" x2="21" y2="6"/>
+              <line x1="3" y1="12" x2="21" y2="12"/>
+              <line x1="3" y1="18" x2="21" y2="18"/>
+            </svg>
+          </button>
+          <svg class="ch-icon" id="header-ch-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+            <line x1="4" y1="9" x2="20" y2="9"/>
+            <line x1="4" y1="15" x2="20" y2="15"/>
+            <line x1="10" y1="3" x2="8" y2="21"/>
+            <line x1="16" y1="3" x2="14" y2="21"/>
+          </svg>
+          <h2 id="chat-channel-name">geral</h2>
+          <span class="ch-desc" id="chat-channel-desc">Conversa livre do servidor</span>
+        </div>
+        <div class="chat-actions">
+          <button id="btn-free-setup" class="free-setup-pill" title="Configuração Gratuita (C:\Users\João Pedro\Desktop\SITEEE)">
+            <span class="conn-dot" id="conn-dot"></span>
+            <span id="conn-label">Configurar Grátis</span>
+          </button>
+          <button id="btn-notif-toggle" title="Notificações">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/>
+              <path d="M13.73 21a2 2 0 0 1-3.46 0"/>
+            </svg>
+          </button>
+          <button id="btn-pins-toggle" title="Fixadas">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <line x1="12" y1="17" x2="12" y2="22"/>
+              <path d="M5 17h14v-1.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V6h1a2 2 0 0 0 0-4H8a2 2 0 0 0 0 4h1v4.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24z"/>
+            </svg>
+            <span class="pin-dot" id="header-pin-dot"></span>
+          </button>
+          <button id="btn-members-toggle" class="active" title="Membros">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
+              <circle cx="9" cy="7" r="4"/>
+              <path d="M23 21v-2a4 4 0 0 0-3-3.87"/>
+              <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+            </svg>
+          </button>
+          <div class="header-search-wrap">
+            <input type="text" class="header-search-input" id="header-search-input" placeholder="Buscar no canal...">
+            <button id="btn-search-toggle" title="Buscar" style="position:absolute;right:0;width:28px;height:28px;">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+                <circle cx="11" cy="11" r="8"/>
+                <line x1="21" y1="21" x2="16.65" y2="16.65"/>
+              </svg>
+            </button>
+          </div>
+        </div>
+
+        <!-- Pinned Messages Popover -->
+        <div class="header-popover hidden" id="pins-popover">
+          <div class="hp-head">
+            <span>📌 Mensagens Fixadas</span>
+            <button id="close-pins-btn" style="font-size:12px;color:var(--text-mut)">Fechar</button>
+          </div>
+          <div class="hp-body" id="pins-list-body"></div>
+        </div>
+      </header>
+
+      <div class="messages" id="messages">
+        <div class="date-divider">Hoje</div>
+      </div>
+
+      <div class="typing-indicator" id="typing-bar">
+        <span class="dots"><span class="dot"></span><span class="dot"></span><span class="dot"></span></span>
+        <span id="typing-text"><strong>Luna</strong> e <strong>Kai</strong> estão digitando…</span>
+      </div>
+
+      <!-- Reply Banner -->
+      <div class="reply-banner hidden" id="reply-banner">
+        <span>Respondendo a <strong id="reply-target-name">@Luna</strong></span>
+        <button type="button" id="cancel-reply-btn">✕ Cancelar</button>
+      </div>
+
+      <div class="message-form-wrap">
+        <!-- Autocomplete Popover -->
+        <div class="composer-popover autocomplete-popover hidden" id="autocomplete-popover"></div>
+
+        <!-- Hidden file input for real image uploads -->
+        <input type="file" id="real-file-input" accept="image/*" class="hidden">
+
+        <!-- Attach Popover -->
+        <div class="composer-popover attach-popover hidden" id="attach-popover">
+          <button type="button" data-attach="file">📷 Enviar Imagem do PC</button>
+          <button type="button" data-attach="mockup">🎨 Enviar Mockup de UI</button>
+          <button type="button" data-attach="code">💻 Enviar Snippet WebRTC</button>
+          <button type="button" data-attach="poll">📊 Criar Enquete Rápida</button>
+        </div>
+
+        <!-- Emoji Popover -->
+        <div class="composer-popover emoji-popover hidden" id="emoji-popover">
+          <div class="ep-title">Emojis Rápidos</div>
+          <div class="emoji-grid" id="emoji-grid"></div>
+        </div>
+
+        <form class="message-form" id="message-form">
+          <button type="button" class="add-btn" id="btn-attach" title="Anexar">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
+              <line x1="12" y1="5" x2="12" y2="19"/>
+              <line x1="5" y1="12" x2="19" y2="12"/>
+            </svg>
+          </button>
+          <input type="text" id="message-input" placeholder="Conversar em #geral (use `código` ou @nome)" autocomplete="off">
+          <button type="button" class="icon-btn" id="btn-emoji" title="Emoji">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+              <circle cx="12" cy="12" r="10"/>
+              <path d="M8 14s1.5 2 4 2 4-2 4-2"/>
+              <line x1="9" y1="9" x2="9.01" y2="9"/>
+              <line x1="15" y1="9" x2="15.01" y2="9"/>
+            </svg>
+          </button>
+          <button type="button" class="icon-btn" id="btn-gift" title="Presente">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <polyline points="20 12 20 22 4 22 4 12"/>
+              <rect x="2" y="7" width="20" height="5"/>
+              <line x1="12" y1="22" x2="12" y2="7"/>
+              <path d="M12 7H7.5a2.5 2.5 0 0 1 0-5C11 2 12 7 12 7z"/>
+              <path d="M12 7h4.5a2.5 2.5 0 0 0 0-5C13 2 12 7 12 7z"/>
+            </svg>
+          </button>
+        </form>
+      </div>
+    </div>
+
+    <!-- FRIENDS HUB VIEW (HOME) -->
+    <div class="friends-view hidden" id="friends-view">
+      <header class="chat-header">
+        <div class="chat-title">
+          <svg class="ch-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
+            <circle cx="9" cy="7" r="4"/>
+          </svg>
+          <h2>Amigos</h2>
+          <div class="friends-tabs">
+            <button class="friends-tab active" data-ftab="online">Online</button>
+            <button class="friends-tab" data-ftab="all">Todos</button>
+            <button class="friends-tab add-friend" id="btn-open-add-friend">Adicionar Amigo</button>
+          </div>
+        </div>
+      </header>
+      <div class="friends-list-wrap" id="friends-list-container"></div>
+    </div>
+
+    <!-- VOICE VIEW -->
+    <div class="voice-view hidden" id="voice-view">
+      <header class="chat-header">
+        <div class="chat-title">
+          <svg class="ch-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/>
+            <path d="M15.54 8.46a5 5 0 0 1 0 7.07"/>
+            <path d="M19.07 4.93a10 10 0 0 1 0 14.14"/>
+          </svg>
+          <h2 id="voice-channel-name">Sala Principal</h2>
+          <span class="ch-desc" id="voice-participants-count">4 participantes • Simulcast 1080p</span>
+        </div>
+        <div class="chat-actions">
+          <button id="voice-toggle-chat" title="Voltar ao chat de texto mantendo a call">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+            </svg>
+          </button>
+        </div>
+      </header>
+
+      <div class="voice-stage" id="voice-stage"></div>
+
+      <div class="soundboard-bar" id="soundboard-bar">
+        <button type="button" class="sb-fx-btn" data-sfx="fanfare">🎺 Fanfarra</button>
+        <button type="button" class="sb-fx-btn" data-sfx="coin">🪙 Moeda 8-Bit</button>
+        <button type="button" class="sb-fx-btn" data-sfx="laser">⚡ Laser</button>
+        <button type="button" class="sb-fx-btn" data-sfx="powerup">🚀 Power-Up</button>
+      </div>
+      <div class="voice-controls">
+        <button class="vc-btn" id="vc-mic" title="Microfone">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+            <rect x="9" y="2" width="6" height="12" rx="3"/>
+            <path d="M5 10v2a7 7 0 0 0 14 0v-2"/>
+            <line x1="12" y1="19" x2="12" y2="22"/>
+          </svg>
+        </button>
+        <button class="vc-btn" id="vc-video" title="Câmera">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <polygon points="23 7 16 12 23 17 23 7"/>
+            <rect x="1" y="5" width="15" height="14" rx="2"/>
+          </svg>
+        </button>
+        <button class="vc-btn" id="vc-screen" title="Compartilhar tela">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="2" y="3" width="20" height="14" rx="2"/>
+            <line x1="8" y1="21" x2="16" y2="21"/>
+            <line x1="12" y1="17" x2="12" y2="21"/>
+          </svg>
+        </button>
+        <button class="vc-btn" id="vc-speak-sim" title="Simular Fala (Testar Anel de Voz)">
+          🎙️
+        </button>
+        <button class="vc-btn" id="vc-react-call" title="Enviar Reação na Call">
+          🎉
+        </button>
+        <button class="vc-btn danger" id="vc-leave" title="Desconectar">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M10.68 13.31a16 16 0 0 0 3.41 2.6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7 2 2 0 0 1 1.72 2v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91"/>
+            <line x1="23" y1="1" x2="1" y2="23"/>
+          </svg>
+        </button>
+      </div>
+    </div>
+
+  </main>
+
+  <!-- ============================================================
+       MEMBERS SIDEBAR
+  ============================================================ -->
+  <aside class="members" id="members-sidebar"></aside>
+
+</div>
+
+<!-- USER PROFILE CARD POPOVER -->
+<div class="profile-card-popover hidden" id="profile-popover"></div>
+
+<!-- UNIVERSAL MODAL -->
+<div class="modal-backdrop hidden" id="modal-backdrop">
+  <div class="modal-box" id="modal-box"></div>
+</div>
+
+<!-- TOAST CONTAINER -->
+<div class="toast-container" id="toast-container"></div>
+<div class="dropzone-overlay hidden" id="dropzone-overlay">
+  <div style="font-size:48px">📥</div>
+  <h3>Solte a imagem para enviar instantaneamente</h3>
+  <p>Upload direto no canal ativo (100% gratuito)</p>
+</div>
+
+<script>
+/* ============================================================
+   WEB AUDIO SYNTHESIZER (DISCORD-STYLE UI SOUNDS)
+============================================================ */
+let audioCtx = null;
+function playTone(type) {
+  try {
+    if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    if (audioCtx.state === 'suspended') audioCtx.resume();
+    const osc = audioCtx.createOscillator();
+    const gain = audioCtx.createGain();
+    osc.connect(gain);
+    gain.connect(audioCtx.destination);
+    const now = audioCtx.currentTime;
+    gain.gain.setValueAtTime(0.06, now);
+
+    if (type === 'join') {
+      osc.frequency.setValueAtTime(440, now);
+      osc.frequency.exponentialRampToValueAtTime(660, now + 0.14);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.18);
+      osc.start(now);
+      osc.stop(now + 0.18);
+    } else if (type === 'leave') {
+      osc.frequency.setValueAtTime(520, now);
+      osc.frequency.exponentialRampToValueAtTime(310, now + 0.16);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.2);
+      osc.start(now);
+      osc.stop(now + 0.2);
+    } else if (type === 'click') {
+      osc.frequency.setValueAtTime(580, now);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.07);
+      osc.start(now);
+      osc.stop(now + 0.07);
+    }
+  } catch (e) {}
+}
+
+/* ============================================================
+   DADOS DE USUÁRIOS, SERVIDORES E CANAIS
+============================================================ */
+const users = {
+  luna:  { key: 'luna',  name: 'Luna',  handle: 'luna.dev',  color: 'linear-gradient(135deg,#7c5cff,#5b8def)', initial: 'L', role: 'Admin', status: 'online', activity: 'Compartilhando tela • LiveKit', bio: 'Engenheira de WebRTC & Sistemas Distribuídos.' },
+  kai:   { key: 'kai',   name: 'Kai',   handle: 'kai_audio', color: 'linear-gradient(135deg,#3b82f6,#1d4ed8)', initial: 'K', role: 'Mod',   status: 'online', activity: 'Em call na Sala Principal', bio: 'Low-latency audio enthusiast 🎧' },
+  nova:  { key: 'nova',  name: 'Nova',  handle: 'novaux',    color: 'linear-gradient(135deg,#ec4899,#be185d)', initial: 'N', role: 'Core',  status: 'online', activity: 'Codando no VS Code', bio: 'Design Systems & Shaders ✨' },
+  voce:  { key: 'voce',  name: 'Você',  handle: 'voce.orb',  color: 'linear-gradient(135deg,#10b981,#059669)', initial: 'V', role: 'Membro',status: 'online', activity: 'Disponível', bio: 'Explorando o novo Órbita 2.0!' },
+  leo:   { key: 'leo',   name: 'Leo',   handle: 'leodesign', color: 'linear-gradient(135deg,#f59e0b,#d97706)', initial: 'L', role: 'Design',status: 'idle',   activity: 'Figma — Protótipo v4', bio: 'UI/UX Product Designer.' },
+  iris:  { key: 'iris',  name: 'Iris',  handle: 'iris.gg',   color: 'linear-gradient(135deg,#06b6d4,#0e7490)', initial: 'I', status: 'online', activity: 'Jogando Valorant', bio: 'Main controlador.' },
+  axel:  { key: 'axel',  name: 'Axel',  handle: 'axel_rs',   color: 'linear-gradient(135deg,#ef4444,#b91c1c)', initial: 'A', status: 'online', activity: 'Compilando Rust...', bio: 'Cargo build --release' },
+  mia:   { key: 'mia',   name: 'Mia',   handle: 'mia.synth', color: 'linear-gradient(135deg,#eab308,#a16207)', initial: 'M', status: 'idle',   activity: 'Ouvindo Lo-Fi Beats', bio: 'Produtora musical & synthwave.' },
+  rui:   { key: 'rui',   name: 'Rui',   handle: 'rui_ops',   color: 'linear-gradient(135deg,#64748b,#334155)', initial: 'R', status: 'offline', activity: 'Offline', bio: 'SRE / Kubernetes.' },
+  sara:  { key: 'sara',  name: 'Sara',  handle: 'sara_ai',   color: 'linear-gradient(135deg,#64748b,#334155)', initial: 'S', status: 'offline', activity: 'Offline', bio: 'ML Engineer.' },
+  tom:   { key: 'tom',   name: 'Tom',   handle: 'tom_front', color: 'linear-gradient(135deg,#64748b,#334155)', initial: 'T', status: 'offline', activity: 'Offline', bio: 'Frontend Architect.' },
+};
+
+const serversData = {
+  orbita: {
+    name: 'Órbita',
+    boosts: 14,
+    textChannels: [
+      { id: 'geral',  name: 'geral',     desc: 'Conversa livre da comunidade Órbita' },
+      { id: 'avisos', name: 'avisos',    desc: 'Changelog oficial e novidades da plataforma', unread: 2 },
+      { id: 'design', name: 'design',    desc: 'Críticas de UI, Figma e Design System' },
+      { id: 'dev',    name: 'dev',       desc: 'Arquitetura WebRTC, SFU, Rust e Frontend' },
+      { id: 'random', name: 'aleatório', desc: 'Memes, links e papo furado' },
+    ],
+    voiceChannels: [
+      { id: 'principal', name: 'Sala Principal' },
+      { id: 'musica',    name: 'Música' },
+      { id: 'foco',      name: 'Foco' },
+    ]
+  },
+  designers: {
+    name: 'Designers Club',
+    boosts: 8,
+    textChannels: [
+      { id: 'geral',    name: 'geral',    desc: 'Ponto de encontro de Product Designers' },
+      { id: 'showcase', name: 'showcase', desc: 'Mostre seus projetos e receba feedback' },
+      { id: 'vagas',    name: 'vagas-ux', desc: 'Oportunidades remotas de UI/UX' },
+    ],
+    voiceChannels: [
+      { id: 'principal', name: 'Design Critique' },
+      { id: 'foco',      name: 'Coworking Silencioso' },
+    ]
+  },
+  gaming: {
+    name: 'Gaming Arena',
+    boosts: 21,
+    textChannels: [
+      { id: 'geral', name: 'geral',     desc: 'Lobby geral para fechar squad' },
+      { id: 'clips', name: 'clips',     desc: 'Melhores jogadas da semana' },
+    ],
+    voiceChannels: [
+      { id: 'principal', name: 'Squad #01 (Ranked)' },
+      { id: 'musica',    name: 'Watch Party' },
+    ]
+  },
+  music: {
+    name: 'Estúdio Música ♪',
+    boosts: 5,
+    textChannels: [
+      { id: 'geral',    name: 'geral',    desc: 'Produção musical, synths e mixagem' },
+      { id: 'collabs',  name: 'collabs',  desc: 'Troca de stems e projetos' },
+    ],
+    voiceChannels: [
+      { id: 'principal', name: 'Jam Session Ao Vivo' },
+      { id: 'musica',    name: 'Rádio Lo-Fi 24/7' },
+    ]
+  }
+};
+
+const channelMessages = {
+  'orbita:geral': [
+    { id: 101, user: 'luna', time: '19:42', pinned: true, content: 'Gente, testei o novo simulcast e a diferença é absurda 🚀', reactions: [{ emoji: '🚀', count: 5, mine: false }, { emoji: '🔥', count: 3, mine: true }] },
+    { id: 102, user: 'kai',  time: '19:43', content: 'Sério? Tava pensando em mudar aqui também' },
+    { id: 103, user: 'luna', time: '19:43', content: 'Sim, o upload caiu pra tipo <code>metade</code> com a mesma qualidade', reactions: [{ emoji: '💡', count: 2, mine: false }] },
+    { id: 104, user: 'nova', time: '19:45', content: 'O truque é combinar com <code>adaptiveStream</code>, né?', replyTo: { user: 'luna', preview: 'Sim, o upload caiu pra tipo metade com a mesma qualidade' } },
+    { id: 105, user: 'luna', time: '19:45', content: 'Exatamente. E pra screen share, 15fps é o sweet spot' },
+    { id: 106, system: true, content: 'Axel entrou no servidor.' },
+    { id: 107, user: 'leo',  time: '19:48', pinned: true, content: 'Galera, terminei o mock da tela de chamada 👀', attachment: true, reactions: [{ emoji: '❤️', count: 7, mine: false }, { emoji: '🔥', count: 4, mine: false }] },
+    { id: 108, user: 'voce', time: '19:50', content: 'Ficou incrível! Já tá no Figma?' },
+    { id: 109, user: 'luna', time: '19:51', content: 'Mandei no <code>#design</code> agora! Cliquem na Sala Principal na barra lateral pra ver meu screen share ao vivo.' },
+  ],
+  'orbita:avisos': [
+    { id: 201, user: 'luna', time: '18:00', pinned: true, content: '🎉 <strong>Órbita 2.5 liberado!</strong> Agora temos árvore de voz ao vivo na barra lateral, cartões de perfil, enquetes interativas e seletor de temas.', reactions: [{ emoji: '🎉', count: 12, mine: true }, { emoji: '🚀', count: 9, mine: false }] },
+    { id: 202, user: 'kai',  time: '18:15', content: 'O codec Opus agora opera em <code>384kbps</code> nos canais impulsionados!' },
+  ],
+  'orbita:design': [
+    { id: 301, user: 'leo',  time: '17:20', pinned: true, content: 'Atualizei os tokens de cor do tema escuro. Qual acento vocês preferem para o padrão?', poll: { question: 'Qual tema padrão deve vir ativo no Órbita?', options: [{ text: 'Violeta Órbita (#7c5cff)', votes: 8, voted: true }, { text: 'Blurple Clássico (#5865f2)', votes: 4, voted: false }, { text: 'Cyber Emerald (#10b981)', votes: 3, voted: false }] } },
+    { id: 302, user: 'nova', time: '17:24', content: 'Violeta Órbita dá uma identidade muito mais própria!' },
+  ],
+  'orbita:dev': [
+    { id: 401, user: 'axel', time: '16:10', content: 'Subi o worker de sinalização em Rust. Latência média caiu para <code>11ms</code> em São Paulo.' },
+    { id: 402, user: 'luna', time: '16:14', content: 'Boa @Axel! Já deixei o endpoint <code>/token</code> pronto na Sala Principal.' },
+  ],
+  'orbita:random': [
+    { id: 501, user: 'iris', time: '15:02', content: 'Alguém anima fechar um lobby mais tarde? 🎮', reactions: [{ emoji: '👀', count: 4, mine: false }] },
+  ],
+  'dm:luna': [
+    { id: 901, user: 'luna', time: '19:10', content: 'Oi! Se precisar testar o compartilhamento de tela, entra lá na Sala Principal 😊' }
+  ]
+};
+
+const voiceParticipants = [
+  { key: 'luna', channel: 'principal', sharing: true,  video: false, muted: false, speaking: false },
+  { key: 'kai',  channel: 'principal', sharing: false, video: true,  muted: false, speaking: true  },
+  { key: 'nova', channel: 'principal', sharing: false, video: true,  muted: true,  speaking: false },
+  { key: 'mia',  channel: 'musica',    sharing: false, video: false, muted: false, speaking: true  },
+];
+
+let screenSharingSelf = false;
+
+const state = {
+  mode: 'server', // 'server' | 'home' | 'dm'
+  activeServer: 'orbita',
+  activeChannel: 'geral',
+  activeDmUser: 'luna',
+  activeType: 'text',
+  inVoice: false,
+  voiceChannel: null,
+  muted: false,
+  deafened: false,
+  camera: false,
+  selfSpeaking: false,
+  replyingTo: null,
+  searchQuery: '',
+  notifMuted: false,
+  friendsFilter: 'online',
+  theme: 'orbita',
+  density: 'cozy'
+};
+
+/* ============================================================
+   HELPERS
+============================================================ */
+const $ = (s, r = document) => r.querySelector(s);
+const $$ = (s, r = document) => [...r.querySelectorAll(s)];
+
+function esc(s) {
+  return String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+}
+
+function formatRichText(raw) {
+  // Preserve already-trusted tags in preloaded messages or format markdown
+  let txt = raw;
+  txt = txt.replace(/`([^`]+)`/g, '<code>$1</code>');
+  txt = txt.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
+  txt = txt.replace(/@([A-Za-zÀ-ÿ0-9_]+)/g, '<span class="mention-chip" data-mention="$1">@$1</span>');
+  return txt;
+}
+
+function showToast(msg) {
+  const wrap = $('#toast-container');
+  const t = document.createElement('div');
+  t.className = 'toast';
+  t.innerHTML = `<span>✦</span><span>${esc(msg)}</span>`;
+  wrap.appendChild(t);
+  setTimeout(() => t.remove(), 2800);
+}
+
+function getConversationKey() {
+  if (state.mode === 'dm') return `dm:${state.activeDmUser}`;
+  return `${state.activeServer}:${state.activeChannel}`;
+}
+
+function getActiveMessages() {
+  const k = getConversationKey();
+  if (!channelMessages[k]) {
+    channelMessages[k] = [
+      { id: Date.now(), user: 'luna', time: 'Agora', content: `Bem-vindo ao canal <code>#${esc(state.activeChannel)}</code>! Comece a conversa abaixo.` }
+    ];
+  }
+  return channelMessages[k];
+}
+
+/* ============================================================
+   RENDER: SIDEBAR CHANNELS & NESTED VOICE USERS
+============================================================ */
+function renderSidebarChannels() {
+  const srv = serversData[state.activeServer];
+  if (!srv) return;
+
+  $('#sidebar-server-title').textContent = srv.name;
+  $('#sidebar-boost-pill').textContent = `NVL ${srv.boosts >= 14 ? 3 : srv.boosts >= 7 ? 2 : 1}`;
+  $('#banner-title').textContent = `${srv.boosts} Impulsos Ativos`;
+
+  const textList = $('#text-channel-list');
+  textList.innerHTML = srv.textChannels.map(ch => {
+    const isActive = state.mode === 'server' && state.activeType === 'text' && state.activeChannel === ch.id;
+    const unreadCls = ch.unread ? ' unread' : '';
+    const badge = ch.unread ? `<span class="badge-count">${ch.unread}</span>` : '';
+    return `
+      <a class="channel${isActive ? ' active' : ''}${unreadCls}" data-channel="${ch.id}" data-type="text">
+        <svg class="ch-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+          <line x1="4" y1="9" x2="20" y2="9"/>
+          <line x1="4" y1="15" x2="20" y2="15"/>
+          <line x1="10" y1="3" x2="8" y2="21"/>
+          <line x1="16" y1="3" x2="14" y2="21"/>
+        </svg>
+        <span>${esc(ch.name)}</span>
+        ${badge}
+      </a>
+    `;
+  }).join('');
+
+  const voiceList = $('#voice-channel-list');
+  voiceList.innerHTML = srv.voiceChannels.map(vc => {
+    const isActive = state.inVoice && state.voiceChannel === vc.id && state.activeType === 'voice';
+    const connected = getVoiceChannelParticipants(vc.id);
+    const hasLive = connected.some(p => p.sharing) || (state.inVoice && state.voiceChannel === vc.id && screenSharingSelf);
+
+    const treeHtml = connected.map(p => {
+      const u = users[p.key];
+      const isLive = p.sharing || (p.isYou && screenSharingSelf);
+      return `
+        <div class="voice-tree-user${p.speaking ? ' speaking' : ''}" data-user-card="${u.key}">
+          <div class="vt-avatar" style="background:${u.color}">${u.initial}</div>
+          <span class="vt-name">${esc(u.name)}</span>
+          ${p.muted ? '<span title="Silenciado" style="color:var(--danger);font-size:11px;">🔇</span>' : ''}
+          ${isLive ? '<span class="vt-live">AO VIVO</span>' : ''}
+        </div>
+      `;
+    }).join('');
+
+    return `
+      <a class="channel${isActive ? ' active' : ''}" data-channel="${vc.id}" data-type="voice">
+        <svg class="ch-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/>
+          <path d="M15.54 8.46a5 5 0 0 1 0 7.07"/>
+          <path d="M19.07 4.93a10 10 0 0 1 0 14.14"/>
+        </svg>
+        <span>${esc(vc.name)}</span>
+        ${hasLive ? '<span class="live-pill">AO VIVO</span>' : (connected.length ? `<span class="badge-count voice-count">${connected.length}</span>` : '')}
+      </a>
+      <div class="voice-tree">${treeHtml}</div>
+    `;
+  }).join('');
+
+  bindChannelEvents();
+}
+
+function getVoiceChannelParticipants(chId) {
+  const list = voiceParticipants.filter(p => p.channel === chId).map(p => ({ ...p }));
+  if (state.inVoice && state.voiceChannel === chId) {
+    list.push({
+      key: 'voce',
+      channel: chId,
+      sharing: screenSharingSelf,
+      video: state.camera,
+      muted: state.muted,
+      speaking: state.selfSpeaking,
+      isYou: true
+    });
+  }
+  return list;
+}
+
+/* ============================================================
+   RENDER: MENSAGENS
+============================================================ */
+function renderMessage(m, isGrouped = false) {
+  const el = document.createElement('div');
+  el.className = 'msg' + (m.system ? ' system' : '') + (m.boost ? ' boost-msg' : '') + (m.pinned ? ' pinned-msg' : '') + (isGrouped ? ' grouped' : '');
+  el.dataset.msgId = m.id;
+
+  if (m.system) {
+    el.innerHTML = `
+      <div class="avatar">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+          <line x1="5" y1="12" x2="19" y2="12"/>
+          <polyline points="12 5 19 12 12 19"/>
+        </svg>
+      </div>
+      <div class="body"><div class="content">${m.content}</div></div>
+    `;
+    return el;
+  }
+
+  const u = users[m.user] || users.voce;
+  const reactions = (m.reactions || []).map(r => `
+    <button class="reaction ${r.mine ? 'mine' : ''}" data-emoji="${r.emoji}">
+      <span>${r.emoji}</span><span class="count">${r.count}</span>
+    </button>
+  `).join('');
+
+  const reply = m.replyTo ? `
+    <div class="reply-ref">
+      <div class="bar"></div>
+      <span class="author-ref" data-user-card="${esc(m.replyTo.user)}">@${esc((users[m.replyTo.user] || { name: m.replyTo.user }).name)}</span>
+      <span>${esc(m.replyTo.preview)}</span>
+    </div>
+  ` : '';
+
+  const attachment = m.attachment ? `
+    <div class="attachment">
+      <div class="att-header">
+        <span class="dot" style="background:#f23f43"></span>
+        <span class="dot" style="background:#f0b232"></span>
+        <span class="dot" style="background:#23a55a"></span>
+        <span style="margin-left:6px;font-weight:600;">orbita-call-stage-v4.fig</span>
+      </div>
+      <div class="att-preview">
+        <div class="mock-ui">
+          <div class="line"></div>
+          <div class="line"></div>
+          <div class="line"></div>
+          <div class="line"></div>
+        </div>
+      </div>
+    </div>
+  ` : '';
+
+  let pollHtml = '';
+  if (m.poll) {
+    const totalVotes = m.poll.options.reduce((s, o) => s + o.votes, 0) || 1;
+    pollHtml = `
+      <div class="poll-card" data-poll-msg="${m.id}">
+        <div class="poll-q">📊 ${esc(m.poll.question)}</div>
+        ${m.poll.options.map((opt, idx) => {
+          const pct = Math.round((opt.votes / totalVotes) * 100);
+          return `
+            <button class="poll-opt ${opt.voted ? 'voted' : ''}" data-poll-idx="${idx}">
+              <div class="poll-bar" style="width:${pct}%"></div>
+              <span>${esc(opt.text)}</span>
+              <span>${opt.votes} (${pct}%)</span>
+            </button>
+          `;
+        }).join('')}
+      </div>
+    `;
+  }
+
+  const imgHtml = m.imageUrl ? `<img src="${m.imageUrl}" alt="Anexo enviado" class="uploaded-img-att">` : '';
+  const leftCol = isGrouped
+    ? `<div class="avatar-col"><span class="hover-time">${esc(m.time)}</span></div>`
+    : `<div class="avatar" style="background:${u.color}" data-user-card="${u.key}">${u.initial}</div>`;
+  const headHtml = isGrouped
+    ? (m.pinned ? `<div class="head"><span class="pin-badge">📌 Fixada</span></div>` : '')
+    : `<div class="head">
+        <span class="author" style="color: ${m.user === 'luna' ? 'var(--accent-hover)' : ''}" data-user-card="${u.key}">${esc(u.name)}</span>
+        ${u.role ? `<span class="role-tag">${esc(u.role)}</span>` : ''}
+        <span class="time">${esc(m.time)}</span>
+        ${m.pinned ? `<span class="pin-badge">📌 Fixada</span>` : ''}
+      </div>`;
+
+  el.innerHTML = `
+    ${leftCol}
+    <div class="body">
+      ${reply}
+      ${headHtml}
+      <div class="content">${m.content}${m.edited ? `<span class="edited-tag">(editado)</span>` : ""}</div>
+      ${imgHtml}
+      ${attachment}
+      ${pollHtml}
+      <div class="reactions">${reactions}</div>
+    </div>
+    <div class="hover-actions">
+      <button data-quick-react="🚀" title="Reagir 🚀">🚀</button>
+      <button data-quick-react="🔥" title="Reagir 🔥">🔥</button>
+      <button data-quick-react="❤️" title="Reagir ❤️">❤️</button>
+      <button data-action="reply" title="Responder">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <polyline points="9 17 4 12 9 7"/>
+          <path d="M20 18v-2a4 4 0 0 0-4-4H4"/>
+        </svg>
+      </button>
+      <button data-action="pin" title="${m.pinned ? 'Desafixar mensagem' : 'Fixar mensagem'}">📌</button>
+      ${m.user === 'voce' ? `<button data-action="edit" title="Editar mensagem">✏️</button><button data-action="delete" title="Excluir mensagem" style="color:var(--danger)">🗑️</button>` : ''}
+    </div>
+  `;
+  return el;
+}
+
+function renderAllMessages() {
+  const box = $('#messages');
+  const list = getActiveMessages();
+  const q = state.searchQuery.trim().toLowerCase();
+  const filtered = q
+    ? list.filter(m => (m.content || '').toLowerCase().includes(q) || (m.user || '').toLowerCase().includes(q))
+    : list;
+
+  const chTitle = state.mode === 'dm'
+    ? `@${(users[state.activeDmUser] || users.luna).name}`
+    : `#${state.activeChannel}`;
+
+  box.innerHTML = `
+    <div class="channel-welcome">
+      <div class="cw-icon">
+        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <line x1="4" y1="9" x2="20" y2="9"/><line x1="4" y1="15" x2="20" y2="15"/>
+          <line x1="10" y1="3" x2="8" y2="21"/><line x1="16" y1="3" x2="14" y2="21"/>
+        </svg>
+      </div>
+      <h3>Bem-vindo a ${esc(chTitle)}!</h3>
+      <p>${state.mode === 'dm' ? 'Este é o início do seu histórico de mensagens diretas.' : 'Este é o começo do canal. Reaja, fixe mensagens ou entre em uma sala de voz.'}</p>
+    </div>
+    <div class="date-divider">${q ? `Resultados para "${esc(q)}" (${filtered.length})` : 'Hoje'}</div>
+  `;
+
+  filtered.forEach((m, idx) => {
+    const prev = idx > 0 ? filtered[idx - 1] : null;
+    const isGrouped = Boolean(prev && !prev.system && !m.system && !m.boost && !m.replyTo && prev.user === m.user);
+    box.appendChild(renderMessage(m, isGrouped));
+  });
+  box.scrollTop = box.scrollHeight;
+  updatePinDot();
+}
+
+function updatePinDot() {
+  const pins = getActiveMessages().filter(m => m.pinned);
+  $('#header-pin-dot').classList.toggle('hidden', pins.length === 0);
+}
+
+/* ============================================================
+   RENDER: MEMBERS SIDEBAR
+============================================================ */
+function renderMembersSidebar() {
+  const box = $('#members-sidebar');
+  const all = Object.values(users);
+  const online = all.filter(u => u.status !== 'offline');
+  const offline = all.filter(u => u.status === 'offline');
+
+  box.innerHTML = `
+    <div class="member-group">
+      <h3>Online — ${online.length}</h3>
+      ${online.map(u => `
+        <div class="member ${u.status}" data-user-card="${u.key}">
+          <div class="m-avatar" style="background:${u.color}">${u.initial}</div>
+          <div class="m-info">
+            <div class="m-name ${u.role === 'Admin' || u.role === 'Mod' ? 'role' : ''}">${esc(u.name)}</div>
+            <div class="m-status">${esc(u.activity || '')}</div>
+          </div>
+        </div>
+      `).join('')}
+    </div>
+    <div class="member-group">
+      <h3>Offline — ${offline.length}</h3>
+      ${offline.map(u => `
+        <div class="member offline" data-user-card="${u.key}">
+          <div class="m-avatar" style="background:${u.color}">${u.initial}</div>
+          <div class="m-info">
+            <div class="m-name">${esc(u.name)}</div>
+          </div>
+        </div>
+      `).join('')}
+    </div>
+  `;
+}
+
+/* ============================================================
+   RENDER: FRIENDS HUB & DMs
+============================================================ */
+function renderDmSidebar() {
+  const dmList = ['luna', 'kai', 'nova', 'leo', 'iris', 'axel'];
+  $('#dm-users-list').innerHTML = dmList.map(k => {
+    const u = users[k];
+    const active = state.mode === 'dm' && state.activeDmUser === k;
+    const dotColor = u.status === 'online' ? 'var(--online)' : u.status === 'idle' ? 'var(--idle)' : 'var(--offline)';
+    return `
+      <div class="dm-item ${active ? 'active' : ''}" data-dm-user="${k}">
+        <div class="dm-av" style="background:${u.color}">
+          ${u.initial}
+          <span class="st-dot" style="background:${dotColor}"></span>
+        </div>
+        <div style="min-width:0;flex:1">
+          <div style="font-size:14px;font-weight:600;color:var(--text)">${esc(u.name)}</div>
+          <div style="font-size:11px;color:var(--text-mut);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(u.activity || '')}</div>
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
+function renderFriendsHub() {
+  const list = Object.values(users).filter(u => u.key !== 'voce' && (state.friendsFilter === 'all' || u.status !== 'offline'));
+  $('#friends-list-container').innerHTML = `
+    <h4>${state.friendsFilter === 'online' ? 'Online' : 'Todos os Amigos'} — ${list.length}</h4>
+    ${list.map(u => `
+      <div class="friend-row">
+        <div class="fr-left" style="cursor:pointer" data-user-card="${u.key}">
+          <div class="up-avatar" style="background:${u.color};width:40px;height:40px;">${u.initial}</div>
+          <div>
+            <div style="font-weight:700;color:var(--text)">${esc(u.name)} <span style="font-size:12px;color:var(--text-mut);font-weight:400">@${esc(u.handle)}</span></div>
+            <div style="font-size:12px;color:var(--text-dim)">${esc(u.activity || 'Disponível')}</div>
+          </div>
+        </div>
+        <div class="fr-actions">
+          <button class="fr-btn" data-open-dm="${u.key}" title="Enviar Mensagem Direta">💬</button>
+          <button class="fr-btn" data-call-friend="${u.key}" title="Convidar para Sala de Voz">📞</button>
+        </div>
+      </div>
+    `).join('')}
+  `;
+}
+
+/* ============================================================
+   RENDER: VOICE STAGE
+============================================================ */
+function renderVoiceStage() {
+  const stage = $('#voice-stage');
+  const chId = state.voiceChannel || 'principal';
+  const participants = getVoiceChannelParticipants(chId);
+  $('#voice-participants-count').textContent = `${participants.length} participantes • Simulcast 1080p`;
+
+  const anySharing = participants.some(p => p.sharing);
+
+  if (anySharing) {
+    const share = participants.find(p => p.sharing);
+    const others = participants.filter(p => p !== share);
+    const shareTile = share.isYou ? makeShareTileSelf() : makeShareTile(users[share.key]);
+
+    stage.innerHTML = `
+      <div class="stage-with-share">
+        <div class="stage-main-share">${shareTile}</div>
+        <div class="stage-share-list">
+          ${others.map(p => makeSmallTile(p)).join('')}
+        </div>
+      </div>
+    `;
+  } else {
+    stage.innerHTML = `
+      <div class="stage-grid">
+        ${participants.map(p => makeTile(p)).join('')}
+      </div>
+    `;
+  }
+}
+
+function makeTile(p) {
+  const u = users[p.key];
+  const speaking = p.speaking ? ' speaking' : '';
+  const camCls = p.video ? ' cam-on' : '';
+  return `
+    <div class="tile${speaking}${camCls}" data-user-card="${u.key}">
+      <div class="tile-avatar" style="background:${u.color}">${u.initial}</div>
+      <div class="tile-label">
+        <svg class="mic${p.muted ? ' muted' : ''}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+          <rect x="9" y="2" width="6" height="12" rx="3"/>
+          <path d="M5 10v2a7 7 0 0 0 14 0v-2"/>
+        </svg>
+        ${esc(u.name)} ${p.video ? '• 📹 HD' : ''}
+      </div>
+      ${p.isYou ? '<div class="tile-you">Você</div>' : ''}
+    </div>
+  `;
+}
+
+function makeSmallTile(p) {
+  const u = users[p.key];
+  const speaking = p.speaking ? ' speaking' : '';
+  const camCls = p.video ? ' cam-on' : '';
+  return `
+    <div class="tile${speaking}${camCls}" style="min-height:140px" data-user-card="${u.key}">
+      <div class="tile-avatar" style="width:56px;height:56px;font-size:22px;background:${u.color}">${u.initial}</div>
+      <div class="tile-label">
+        <svg class="mic${p.muted ? ' muted' : ''}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+          <rect x="9" y="2" width="6" height="12" rx="3"/>
+          <path d="M5 10v2a7 7 0 0 0 14 0v-2"/>
+        </svg>
+        ${esc(u.name)}
+      </div>
+      ${p.isYou ? '<div class="tile-you">Você</div>' : ''}
+    </div>
+  `;
+}
+
+function makeShareTile(u) {
+  return `
+    <div class="tile share" style="height:100%">
+      <div class="mock-code">
+        <div class="code-header">
+          <span class="dot" style="background:#f23f43"></span>
+          <span class="dot" style="background:#f0b232"></span>
+          <span class="dot" style="background:#23a55a"></span>
+          <span class="filename">signaling.py — LiveKit SFU (60 FPS)</span>
+        </div>
+        <pre class="code-body"><code><span class="com"># Server-side token para o Órbita</span>
+<span class="kw">from</span> fastapi <span class="kw">import</span> FastAPI
+<span class="kw">from</span> livekit <span class="kw">import</span> api
+
+app = <span class="fn">FastAPI</span>()
+
+<span class="kw">@app.get</span>(<span class="str">"/token"</span>)
+<span class="kw">def</span> <span class="fn">issue</span>(room: str, identity: str):
+    token = (
+        api.<span class="fn">AccessToken</span>(API_KEY, API_SECRET)
+        .<span class="fn">with_identity</span>(identity)
+        .<span class="fn">with_grants</span>(api.<span class="fn">VideoGrants</span>(
+            room_join=<span class="num">True</span>,
+            room=room,
+        ))
+    )
+    <span class="kw">return</span> {<span class="str">"token"</span>: token.<span class="fn">to_jwt</span>()}</code></pre>
+      </div>
+      <div class="tile-label" style="bottom:12px;left:12px">
+        <span style="background:var(--danger);color:#fff;padding:1px 5px;border-radius:4px;font-size:10px;font-weight:800;">AO VIVO</span>
+        ${esc(u.name)} está compartilhando a tela
+      </div>
+    </div>
+  `;
+}
+
+function makeShareTileSelf() {
+  return `
+    <div class="tile share" style="height:100%">
+      <div class="mock-code">
+        <div class="code-header">
+          <span class="dot" style="background:#f23f43"></span>
+          <span class="dot" style="background:#f0b232"></span>
+          <span class="dot" style="background:#23a55a"></span>
+          <span class="filename">Sua tela — orbita.html (1080p 60fps)</span>
+        </div>
+        <pre class="code-body"><code><span class="com">&lt;!-- Transmissão WebRTC Simulcast Ativa --&gt;</span>
+<span class="kw">&lt;div</span> <span class="fn">class</span>=<span class="str">"app"</span><span class="kw">&gt;</span>
+  <span class="kw">&lt;nav</span> <span class="fn">class</span>=<span class="str">"rail"</span><span class="kw">&gt;</span>Servidores &amp; DMs<span class="kw">&lt;/nav&gt;</span>
+  <span class="kw">&lt;aside</span> <span class="fn">class</span>=<span class="str">"sidebar"</span><span class="kw">&gt;</span>Canais &amp; Árvore de Voz<span class="kw">&lt;/aside&gt;</span>
+  <span class="kw">&lt;main</span> <span class="fn">class</span>=<span class="str">"main"</span><span class="kw">&gt;</span>Stage WebRTC + Chat<span class="kw">&lt;/main&gt;</span>
+<span class="kw">&lt;/div&gt;</span></code></pre>
+      </div>
+      <div class="tile-label" style="bottom:12px;left:12px">
+        <span style="background:var(--danger);color:#fff;padding:1px 5px;border-radius:4px;font-size:10px;font-weight:800;">AO VIVO</span>
+        Você está compartilhando a tela
+      </div>
+    </div>
+  `;
+}
+
+/* ============================================================
+   NAVEGAÇÃO E ESTADOS
+============================================================ */
+function setTextChannel(name) {
+  state.mode = 'server';
+  state.activeChannel = name;
+  state.activeType = 'text';
+
+  const srv = serversData[state.activeServer];
+  const chObj = srv.textChannels.find(c => c.id === name) || { name, desc: 'Canal de texto' };
+  chObj.unread = 0;
+
+  $('#chat-channel-name').textContent = chObj.name;
+  $('#chat-channel-desc').textContent = chObj.desc;
+  $('#message-input').placeholder = `Conversar em #${chObj.name}`;
+
+  $('#friends-view').classList.add('hidden');
+  $('#voice-view').classList.add('hidden');
+  $('#chat-view').classList.remove('hidden');
+
+  renderSidebarChannels();
+  renderAllMessages();
+}
+
+function openDmWith(userKey) {
+  state.mode = 'dm';
+  state.activeDmUser = userKey;
+  state.activeType = 'text';
+  const u = users[userKey] || users.luna;
+
+  $('#rail-home-btn').classList.add('active');
+  $$('.server-icon[data-server]').forEach(s => s.classList.remove('active'));
+
+  $('#sidebar-server-title').textContent = 'Mensagens Diretas';
+  $('#sidebar-boost-pill').classList.add('hidden');
+  $('#server-banner-box').classList.add('hidden');
+  $('#sidebar-scroll-content').classList.add('hidden');
+  $('#dm-scroll-content').classList.remove('hidden');
+  $('#dm-friends-hub-btn').classList.remove('active');
+
+  $('#chat-channel-name').textContent = u.name;
+  $('#chat-channel-desc').textContent = `@${u.handle} • ${u.activity || 'Disponível'}`;
+  $('#message-input').placeholder = `Enviar mensagem direta para @${u.name}`;
+
+  $('#friends-view').classList.add('hidden');
+  $('#voice-view').classList.add('hidden');
+  $('#chat-view').classList.remove('hidden');
+
+  renderDmSidebar();
+  renderAllMessages();
+}
+
+function openFriendsHub() {
+  state.mode = 'home';
+  $('#rail-home-btn').classList.add('active');
+  $$('.server-icon[data-server]').forEach(s => s.classList.remove('active'));
+
+  $('#sidebar-server-title').textContent = 'Início';
+  $('#sidebar-boost-pill').classList.add('hidden');
+  $('#server-banner-box').classList.add('hidden');
+  $('#sidebar-scroll-content').classList.add('hidden');
+  $('#dm-scroll-content').classList.remove('hidden');
+  $('#dm-friends-hub-btn').classList.add('active');
+
+  $('#chat-view').classList.add('hidden');
+  $('#voice-view').classList.add('hidden');
+  $('#friends-view').classList.remove('hidden');
+
+  renderDmSidebar();
+  renderFriendsHub();
+}
+
+function switchServer(srvKey) {
+  if (!serversData[srvKey]) return;
+  state.mode = 'server';
+  state.activeServer = srvKey;
+  $('#rail-home-btn').classList.remove('active');
+  $$('.server-icon[data-server]').forEach(s => {
+    const isMatch = s.dataset.server === srvKey;
+    s.classList.toggle('active', isMatch);
+    if (isMatch) {
+      s.classList.remove('has-unread');
+      const b = s.querySelector('.badge');
+      if (b) b.remove();
+    }
+  });
+
+  $('#sidebar-boost-pill').classList.remove('hidden');
+  $('#server-banner-box').classList.remove('hidden');
+  $('#sidebar-scroll-content').classList.remove('hidden');
+  $('#dm-scroll-content').classList.add('hidden');
+
+  const firstCh = serversData[srvKey].textChannels[0].id;
+  setTextChannel(firstCh);
+}
+
+function joinVoice(name) {
+  const srv = serversData[state.activeServer];
+  const vcObj = srv.voiceChannels.find(v => v.id === name) || { name };
+  state.inVoice = true;
+  state.voiceChannel = name;
+  state.activeType = 'voice';
+
+  $('#voice-bar').classList.remove('hidden');
+  $('#voice-bar-name').textContent = `${vcObj.name} / ${srv.name}`;
+  $('#voice-channel-name').textContent = vcObj.name;
+
+  $('#chat-view').classList.add('hidden');
+  $('#friends-view').classList.add('hidden');
+  $('#voice-view').classList.remove('hidden');
+
+  playTone('join');
+  renderSidebarChannels();
+  renderVoiceStage();
+}
+
+function leaveVoice() {
+  state.inVoice = false;
+  state.voiceChannel = null;
+  screenSharingSelf = false;
+  state.selfSpeaking = false;
+  $('#vc-screen').classList.remove('active');
+  $('#vc-speak-sim').classList.remove('speaking-on');
+  $('#voice-bar').classList.add('hidden');
+  $('#voice-view').classList.add('hidden');
+
+  playTone('leave');
+  renderSidebarChannels();
+  setTextChannel(state.activeChannel || 'geral');
+}
+
+function syncAudioButtons() {
+  $('#vb-mic').classList.toggle('muted', state.muted);
+  $('#vc-mic').classList.toggle('active', state.muted);
+  $('#up-mic-btn').classList.toggle('muted', state.muted);
+  $('#up-deafen-btn').classList.toggle('muted', state.deafened);
+  $('#vb-video').classList.toggle('active', state.camera);
+  $('#vc-video').classList.toggle('active', state.camera);
+  if (state.inVoice) {
+    renderSidebarChannels();
+    renderVoiceStage();
+  }
+}
+
+/* ============================================================
+   USER PROFILE POPOVER & MODALS
+============================================================ */
+function openUserProfileCard(userKey, anchorEl) {
+  const u = users[userKey];
+  if (!u) return;
+  const pop = $('#profile-popover');
+  const rect = anchorEl.getBoundingClientRect();
+  const top = Math.min(window.innerHeight - 340, Math.max(16, rect.top));
+  const left = rect.left > window.innerWidth - 360 ? Math.max(16, rect.left - 312) : Math.min(window.innerWidth - 316, rect.right + 12);
+
+  pop.style.top = `${top}px`;
+  pop.style.left = `${left}px`;
+  pop.innerHTML = `
+    <div class="pc-banner" style="background:${u.color}"></div>
+    <div class="pc-avatar-wrap">
+      <div class="pc-av" style="background:${u.color}">${u.initial}</div>
+      ${u.role ? `<span class="role-tag" style="margin-bottom:8px">${esc(u.role)}</span>` : ''}
+    </div>
+    <div class="pc-body">
+      <div class="pc-name">${esc(u.name)}</div>
+      <div class="pc-handle">@${esc(u.handle)}</div>
+      <div class="pc-box">
+        <h5>Sobre Mim</h5>
+        <div>${esc(u.bio || 'Membro da comunidade Órbita.')}</div>
+      </div>
+      <div class="pc-box">
+        <h5>Atividade Atual</h5>
+        <div style="color:var(--accent-hover);font-weight:600">${esc(u.activity || 'Disponível')}</div>
+      </div>
+      ${u.key !== 'voce' ? `<input type="text" class="pc-dm-input" data-quick-dm="${u.key}" placeholder="Conversar com @${esc(u.name)} (Enter)">` : ''}
+    </div>
+  `;
+  pop.classList.remove('hidden');
+  const input = pop.querySelector('.pc-dm-input');
+  if (input) {
+    input.focus();
+    input.addEventListener('keydown', (ev) => {
+      if (ev.key === 'Enter' && input.value.trim()) {
+        const text = input.value.trim();
+        const dmKey = `dm:${u.key}`;
+        if (!channelMessages[dmKey]) channelMessages[dmKey] = [];
+        const now = new Date();
+        const time = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+        channelMessages[dmKey].push({ id: Date.now(), user: 'voce', time, content: esc(text) });
+        pop.classList.add('hidden');
+        openDmWith(u.key);
+      }
+    });
+  }
+}
+
+function openModal(title, bodyHtml, onConfirm, confirmLabel = 'Confirmar') {
+  const backdrop = $('#modal-backdrop');
+  const box = $('#modal-box');
+  box.innerHTML = `
+    <div class="modal-head">
+      <h3>${title}</h3>
+      <button id="modal-close-x" class="btn-secondary">✕</button>
+    </div>
+    <div class="modal-body">${bodyHtml}</div>
+    <div class="modal-foot">
+      <button class="btn-secondary" id="modal-cancel-btn">Cancelar</button>
+      ${onConfirm ? `<button class="btn-primary" id="modal-confirm-btn">${confirmLabel}</button>` : ''}
+    </div>
+  `;
+  backdrop.classList.remove('hidden');
+  $('#modal-close-x').onclick = () => backdrop.classList.add('hidden');
+  $('#modal-cancel-btn').onclick = () => backdrop.classList.add('hidden');
+  if (onConfirm) {
+    $('#modal-confirm-btn').onclick = () => {
+      onConfirm();
+      backdrop.classList.add('hidden');
+    };
+  }
+}
+
+/* ============================================================
+   EVENT BINDINGS
+============================================================ */
+function bindChannelEvents() {
+  $$('.channel').forEach(ch => {
+    ch.addEventListener('click', (e) => {
+      e.preventDefault();
+      const name = ch.dataset.channel;
+      const type = ch.dataset.type;
+      $('#app-root').classList.remove('mobile-open');
+      if (type === 'voice') joinVoice(name);
+      else setTextChannel(name);
+    });
+  });
+}
+
+// Home & Server Rail
+$('#rail-home-btn').addEventListener('click', openFriendsHub);
+
+$$('.server-icon[data-server]').forEach(el => {
+  el.addEventListener('click', () => switchServer(el.dataset.server));
+});
+
+$('#btn-add-server').addEventListener('click', () => {
+  openModal(
+    'Criar um Servidor no Órbita',
+    `
+      <div class="modal-field">
+        <label>Nome do Servidor</label>
+        <input type="text" id="new-server-name" placeholder="Ex: Dev Brasil, Clube do Filme..." value="Comunidade Indie">
+      </div>
+      <div class="modal-field">
+        <label>Sigla do Ícone (2 letras)</label>
+        <input type="text" id="new-server-short" maxlength="2" value="CI">
+      </div>
+    `,
+    () => {
+      const name = ($('#new-server-name').value || 'Novo Servidor').trim();
+      const short = ($('#new-server-short').value || name.slice(0, 2)).toUpperCase();
+      const key = 'srv_' + Date.now();
+      serversData[key] = {
+        name,
+        boosts: 1,
+        textChannels: [
+          { id: 'geral', name: 'geral', desc: `Canal principal de ${name}` },
+          { id: 'projetos', name: 'projetos', desc: 'Compartilhe novidades' }
+        ],
+        voiceChannels: [
+          { id: 'principal', name: 'Lounge de Voz' }
+        ]
+      };
+      const btn = document.createElement('button');
+      btn.className = 'server-icon';
+      btn.dataset.server = key;
+      btn.title = name;
+      btn.textContent = short;
+      btn.addEventListener('click', () => switchServer(key));
+      $('#rail-servers-list').appendChild(btn);
+      switchServer(key);
+      showToast(`Servidor "${name}" criado com sucesso!`);
+    },
+    'Criar Servidor'
+  );
+});
+
+$('#btn-explore-servers').addEventListener('click', () => {
+  openModal(
+    '🧭 Explorar Comunidades Públicas',
+    `
+      <div style="display:flex;flex-direction:column;gap:10px;">
+        <div class="pin-card" style="display:flex;justify-content:space-between;align-items:center;">
+          <div>
+            <strong>Rust & WebAssembly BR</strong>
+            <div class="pc-text">1.420 membros • Sistemas e performance</div>
+          </div>
+          <button class="btn-primary" data-join-pub="Rust & Wasm|RW">Entrar</button>
+        </div>
+        <div class="pin-card" style="display:flex;justify-content:space-between;align-items:center;">
+          <div>
+            <strong>AI & Creative Coding</strong>
+            <div class="pc-text">3.890 membros • Shaders, LLMs e Arte Generativa</div>
+          </div>
+          <button class="btn-primary" data-join-pub="Creative AI|AI">Entrar</button>
+        </div>
+      </div>
+    `,
+    null
+  );
+  $$('[data-join-pub]').forEach(b => {
+    b.addEventListener('click', () => {
+      const [name, short] = b.dataset.joinPub.split('|');
+      const key = 'pub_' + Date.now();
+      serversData[key] = {
+        name,
+        boosts: 15,
+        textChannels: [{ id: 'geral', name: 'geral', desc: `Bem-vindo à comunidade ${name}` }],
+        voiceChannels: [{ id: 'principal', name: 'Palco Principal' }]
+      };
+      const btn = document.createElement('button');
+      btn.className = 'server-icon';
+      btn.dataset.server = key;
+      btn.title = name;
+      btn.textContent = short;
+      btn.addEventListener('click', () => switchServer(key));
+      $('#rail-servers-list').appendChild(btn);
+      $('#modal-backdrop').classList.add('hidden');
+      switchServer(key);
+      showToast(`Você entrou em ${name}!`);
+    });
+  });
+});
+
+// Server Header Dropdown & Banner
+$('#server-header-btn').addEventListener('click', (e) => {
+  e.stopPropagation();
+  $('#server-dropdown').classList.toggle('hidden');
+});
+
+$('#dd-invite-btn').addEventListener('click', () => {
+  $('#server-dropdown').classList.add('hidden');
+  const inviteUrl = `https://orbita.gg/convite/${state.activeServer}-2026`;
+  openModal(
+    'Convidar amigos para ' + serversData[state.activeServer].name,
+    `
+      <div class="modal-field">
+        <label>Link de Convite Instantâneo</label>
+        <input type="text" id="invite-link-input" value="${inviteUrl}" readonly>
+      </div>
+    `,
+    () => {
+      const inp = $('#invite-link-input');
+      inp.select();
+      try { document.execCommand('copy'); } catch (e) {}
+      showToast('Link de convite copiado para a área de transferência!');
+    },
+    'Copiar Link'
+  );
+});
+
+function triggerBoostModal() {
+  $('#server-dropdown').classList.add('hidden');
+  openModal(
+    '✦ Impulsionar ' + serversData[state.activeServer].name,
+    `
+      <p style="font-size:14px;color:var(--text-dim);line-height:1.5;">
+        Impulsione este servidor para desbloquear áudio cristalino em <strong>384kbps</strong>, compartilhamento de tela em <strong>1080p 60fps</strong> e emblemas exclusivos no chat!
+      </p>
+    `,
+    () => {
+      const srv = serversData[state.activeServer];
+      srv.boosts++;
+      const now = new Date();
+      const time = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+      getActiveMessages().push({
+        id: Date.now(),
+        user: 'voce',
+        boost: true,
+        time,
+        content: `✦ <strong>Você</strong> acabou de impulsionar o servidor! O servidor agora tem <strong>${srv.boosts} impulsos</strong>!`
+      });
+      renderSidebarChannels();
+      renderAllMessages();
+      showToast('Servidor impulsionado com sucesso! ✦');
+    },
+    'Impulsionar Agora ✦'
+  );
+}
+
+$('#dd-boost-btn').addEventListener('click', triggerBoostModal);
+$('#banner-action-btn').addEventListener('click', triggerBoostModal);
+$('#btn-gift').addEventListener('click', triggerBoostModal);
+
+function openCreateChannelModal(defaultType = 'text') {
+  $('#server-dropdown').classList.add('hidden');
+  openModal(
+    'Criar Novo Canal',
+    `
+      <div class="modal-field">
+        <label>Tipo de Canal</label>
+        <select id="new-ch-type">
+          <option value="text" ${defaultType === 'text' ? 'selected' : ''}># Canal de Texto</option>
+          <option value="voice" ${defaultType === 'voice' ? 'selected' : ''}>🔊 Canal de Voz (WebRTC)</option>
+        </select>
+      </div>
+      <div class="modal-field">
+        <label>Nome do Canal</label>
+        <input type="text" id="new-ch-name" placeholder="ex: arquitetura-front">
+      </div>
+    `,
+    () => {
+      const rawName = ($('#new-ch-name').value || 'novo-canal').trim().toLowerCase().replace(/\s+/g, '-');
+      const type = $('#new-ch-type').value;
+      const srv = serversData[state.activeServer];
+      if (type === 'voice') {
+        srv.voiceChannels.push({ id: rawName, name: rawName });
+        renderSidebarChannels();
+        joinVoice(rawName);
+      } else {
+        srv.textChannels.push({ id: rawName, name: rawName, desc: `Canal #${rawName} criado por Você` });
+        setTextChannel(rawName);
+      }
+      showToast(`Canal ${rawName} criado!`);
+    },
+    'Criar Canal'
+  );
+}
+
+$('#dd-create-channel-btn').addEventListener('click', () => openCreateChannelModal('text'));
+$$('[data-add-channel]').forEach(btn => {
+  btn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    openCreateChannelModal(btn.dataset.addChannel);
+  });
+});
+
+// Settings Modal
+function openSettingsModal() {
+  $('#server-dropdown').classList.add('hidden');
+  openModal(
+    '⚙ Configurações de Aparência & Voz',
+    `
+      <div class="modal-field">
+        <label>Tema de Acento do Órbita</label>
+        <select id="setting-theme">
+          <option value="orbita" ${state.theme === 'orbita' ? 'selected' : ''}>Violeta Órbita (Padrão)</option>
+          <option value="blurple" ${state.theme === 'blurple' ? 'selected' : ''}>Blurple Clássico (Discord)</option>
+          <option value="emerald" ${state.theme === 'emerald' ? 'selected' : ''}>Cyber Emerald</option>
+          <option value="nitro" ${state.theme === 'nitro' ? 'selected' : ''}>Nitro Pink</option>
+        </select>
+      </div>
+      <div class="modal-field">
+        <label>Densidade das Mensagens</label>
+        <select id="setting-density">
+          <option value="cozy" ${state.density === 'cozy' ? 'selected' : ''}>Confortável (Avatares grandes)</option>
+          <option value="compact" ${state.density === 'compact' ? 'selected' : ''}>Compacto (Mais mensagens na tela)</option>
+        </select>
+      </div>
+    `,
+    () => {
+      state.theme = $('#setting-theme').value;
+      state.density = $('#setting-density').value;
+      document.body.dataset.theme = state.theme;
+      document.body.dataset.density = state.density;
+      showToast('Preferências de aparência aplicadas!');
+    },
+    'Salvar Alterações'
+  );
+}
+
+$('#dd-settings-btn').addEventListener('click', openSettingsModal);
+$('#up-settings-btn').addEventListener('click', openSettingsModal);
+
+// Categories collapse
+$$('.category-header').forEach(h => {
+  h.addEventListener('click', () => h.closest('.category').classList.toggle('collapsed'));
+});
+
+// User Panel Controls (Mic, Deafen, Status)
+$('#up-mic-btn').addEventListener('click', () => {
+  state.muted = !state.muted;
+  playTone('click');
+  syncAudioButtons();
+  showToast(state.muted ? 'Microfone silenciado' : 'Microfone ativado');
+});
+
+$('#up-deafen-btn').addEventListener('click', () => {
+  state.deafened = !state.deafened;
+  if (state.deafened) state.muted = true;
+  playTone('click');
+  syncAudioButtons();
+  showToast(state.deafened ? 'Áudio ensurdecido' : 'Áudio restaurado');
+});
+
+$('#up-profile-btn').addEventListener('click', (e) => {
+  e.stopPropagation();
+  $('#status-popover').classList.toggle('hidden');
+});
+
+$$('.sp-opt').forEach(opt => {
+  opt.addEventListener('click', () => {
+    const st = opt.dataset.status;
+    const lbl = opt.dataset.label;
+    users.voce.status = st;
+    users.voce.activity = lbl;
+    const dotColors = { online: 'var(--online)', idle: 'var(--idle)', dnd: 'var(--dnd)', offline: 'var(--offline)' };
+    $('#self-status-dot').style.background = dotColors[st];
+    $('#self-status-text').textContent = lbl;
+    $('#status-popover').classList.add('hidden');
+    renderMembersSidebar();
+  });
+});
+
+$('#save-custom-status-btn').addEventListener('click', () => {
+  const val = $('#custom-status-input').value.trim();
+  if (val) {
+    users.voce.activity = val;
+    $('#self-status-text').textContent = val;
+    $('#status-popover').classList.add('hidden');
+    renderMembersSidebar();
+    showToast('Status personalizado atualizado!');
+  }
+});
+
+// Voice Bar & Voice Stage Controls
+$('#voice-bar-name').addEventListener('click', () => {
+  if (state.inVoice) joinVoice(state.voiceChannel);
+});
+$('#vb-mic').addEventListener('click', () => {
+  state.muted = !state.muted;
+  playTone('click');
+  syncAudioButtons();
+});
+$('#vb-video').addEventListener('click', () => {
+  state.camera = !state.camera;
+  playTone('click');
+  syncAudioButtons();
+});
+$('#vb-leave').addEventListener('click', leaveVoice);
+
+$('#vc-mic').addEventListener('click', () => {
+  state.muted = !state.muted;
+  playTone('click');
+  syncAudioButtons();
+});
+$('#vc-video').addEventListener('click', () => {
+  state.camera = !state.camera;
+  playTone('click');
+  syncAudioButtons();
+  showToast(state.camera ? 'Câmera HD ativada' : 'Câmera desligada');
+});
+$('#vc-screen').addEventListener('click', () => {
+  screenSharingSelf = !screenSharingSelf;
+  $('#vc-screen').classList.toggle('active', screenSharingSelf);
+  playTone('click');
+  renderSidebarChannels();
+  renderVoiceStage();
+  showToast(screenSharingSelf ? 'Compartilhando sua tela em 1080p 60fps' : 'Compartilhamento de tela encerrado');
+});
+$('#vc-speak-sim').addEventListener('click', () => {
+  state.selfSpeaking = !state.selfSpeaking;
+  if (state.selfSpeaking) state.muted = false;
+  $('#vc-speak-sim').classList.toggle('speaking-on', state.selfSpeaking);
+  syncAudioButtons();
+});
+$('#vc-react-call').addEventListener('click', () => {
+  const emojis = ['🚀', '🔥', '🎉', '💜', '👏', '✨'];
+  const pick = emojis[Math.floor(Math.random() * emojis.length)];
+  const fl = document.createElement('div');
+  fl.className = 'stage-reaction-float';
+  fl.textContent = pick;
+  $('#voice-view').appendChild(fl);
+  playTone('click');
+  setTimeout(() => fl.remove(), 1600);
+});
+$('#vc-leave').addEventListener('click', leaveVoice);
+$('#voice-toggle-chat').addEventListener('click', () => {
+  setTextChannel(state.activeChannel || 'geral');
+});
+
+// Chat Header Actions (Mobile Nav, Notifications, Pins, Members, Search)
+$('#mobile-menu-btn').addEventListener('click', () => {
+  $('#app-root').classList.toggle('mobile-open');
+});
+
+$('#btn-notif-toggle').addEventListener('click', () => {
+  state.notifMuted = !state.notifMuted;
+  $('#btn-notif-toggle').classList.toggle('active', state.notifMuted);
+  showToast(state.notifMuted ? 'Notificações deste canal silenciadas 🔕' : 'Notificações ativadas para todas as mensagens 🔔');
+});
+
+$('#btn-pins-toggle').addEventListener('click', (e) => {
+  e.stopPropagation();
+  const pop = $('#pins-popover');
+  const pins = getActiveMessages().filter(m => m.pinned);
+  const body = $('#pins-list-body');
+  if (pins.length === 0) {
+    body.innerHTML = `<div style="padding:16px;text-align:center;color:var(--text-mut);font-size:13px;">Nenhuma mensagem fixada neste canal ainda. Passe o mouse sobre uma mensagem e clique em 📌.</div>`;
+  } else {
+    body.innerHTML = pins.map(p => {
+      const u = users[p.user] || users.voce;
+      return `
+        <div class="pin-card">
+          <div class="pc-top">
+            <span style="color:var(--accent-hover)">${esc(u.name)}</span>
+            <span style="font-size:11px;color:var(--text-mut)">${esc(p.time)}</span>
+          </div>
+          <div class="pc-text">${p.content}</div>
+        </div>
+      `;
+    }).join('');
+  }
+  pop.classList.toggle('hidden');
+});
+
+$('#close-pins-btn').addEventListener('click', () => $('#pins-popover').classList.add('hidden'));
+
+$('#btn-members-toggle').addEventListener('click', () => {
+  const mem = $('#members-sidebar');
+  const hidden = mem.classList.toggle('hidden');
+  $('#btn-members-toggle').classList.toggle('active', !hidden);
+});
+
+$('#header-search-input').addEventListener('input', (e) => {
+  state.searchQuery = e.target.value;
+  renderAllMessages();
+});
+
+$('#btn-search-toggle').addEventListener('click', () => {
+  if (state.searchQuery) {
+    state.searchQuery = '';
+    $('#header-search-input').value = '';
+    renderAllMessages();
+  } else {
+    $('#header-search-input').focus();
+  }
+});
+
+// Composer Attach & Emoji Popovers
+const quickEmojis = ['🚀', '🔥', '❤️', '👀', '🎉', '✨', '💡', '😂', '🙌', '💜', '⚡', '🎧'];
+$('#emoji-grid').innerHTML = quickEmojis.map(em => `<button type="button" data-ins-emoji="${em}">${em}</button>`).join('');
+
+$('#btn-emoji').addEventListener('click', (e) => {
+  e.stopPropagation();
+  $('#attach-popover').classList.add('hidden');
+  $('#emoji-popover').classList.toggle('hidden');
+});
+
+$$('[data-ins-emoji]').forEach(btn => {
+  btn.addEventListener('click', () => {
+    const inp = $('#message-input');
+    inp.value += btn.dataset.insEmoji;
+    inp.focus();
+    $('#emoji-popover').classList.add('hidden');
+  });
+});
+
+$('#btn-attach').addEventListener('click', (e) => {
+  e.stopPropagation();
+  $('#emoji-popover').classList.add('hidden');
+  $('#attach-popover').classList.toggle('hidden');
+});
+
+$$('[data-attach]').forEach(btn => {
+  btn.addEventListener('click', () => {
+    const kind = btn.dataset.attach;
+    $('#attach-popover').classList.add('hidden');
+    const now = new Date();
+    const time = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+    if (kind === 'mockup') {
+      getActiveMessages().push({
+        id: Date.now(),
+        user: 'voce',
+        time,
+        content: 'Compartilhei um novo protótipo de interface:',
+        attachment: true
+      });
+    } else if (kind === 'code') {
+      getActiveMessages().push({
+        id: Date.now(),
+        user: 'voce',
+        time,
+        content: 'Configuração de baixa latência: <code>await room.connect(url, token, { adaptiveStream: true, dynacast: true })</code>'
+      });
+    } else if (kind === 'poll') {
+      getActiveMessages().push({
+        id: Date.now(),
+        user: 'voce',
+        time,
+        content: 'Votem na enquete rápida:',
+        poll: {
+          question: 'Qual horário para a próxima review de arquitetura?',
+          options: [
+            { text: 'Hoje às 20h30', votes: 3, voted: true },
+            { text: 'Amanhã às 19h00', votes: 1, voted: false }
+          ]
+        }
+      });
+    }
+    renderAllMessages();
+  });
+});
+
+$('#cancel-reply-btn').addEventListener('click', () => {
+  state.replyingTo = null;
+  $('#reply-banner').classList.add('hidden');
+});
+
+// Message Submit
+$('#message-form').addEventListener('submit', (e) => {
+  e.preventDefault();
+  const input = $('#message-input');
+  const text = input.value.trim();
+  if (!text) return;
+  const now = new Date();
+  const time = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+
+  const newMsg = {
+    id: Date.now(),
+    user: 'voce',
+    time,
+    content: formatRichText(esc(text))
+  };
+  if (state.replyingTo) {
+    newMsg.replyTo = state.replyingTo;
+    state.replyingTo = null;
+    $('#reply-banner').classList.add('hidden');
+  }
+
+  getActiveMessages().push(newMsg);
+  broadcastNewMessage(getConversationKey(), newMsg);
+  input.value = '';
+  renderAllMessages();
+});
+
+// Delegated Clicks (Reactions, Message Actions, Polls, User Profile Cards, DMs)
+document.addEventListener('click', (e) => {
+  // Close floating popovers if clicked outside
+  if (!e.target.closest('#server-dropdown') && !e.target.closest('#server-header-btn')) {
+    $('#server-dropdown').classList.add('hidden');
+  }
+  if (!e.target.closest('#status-popover') && !e.target.closest('#up-profile-btn')) {
+    $('#status-popover').classList.add('hidden');
+  }
+  if (!e.target.closest('#pins-popover') && !e.target.closest('#btn-pins-toggle')) {
+    $('#pins-popover').classList.add('hidden');
+  }
+  if (!e.target.closest('#emoji-popover') && !e.target.closest('#btn-emoji')) {
+    $('#emoji-popover').classList.add('hidden');
+  }
+  if (!e.target.closest('#attach-popover') && !e.target.closest('#btn-attach')) {
+    $('#attach-popover').classList.add('hidden');
+  }
+  if (!e.target.closest('#profile-popover') && !e.target.closest('[data-user-card]')) {
+    $('#profile-popover').classList.add('hidden');
+  }
+
+  // User Profile Card trigger
+  const cardTrigger = e.target.closest('[data-user-card]');
+  if (cardTrigger) {
+    e.stopPropagation();
+    openUserProfileCard(cardTrigger.dataset.userCard, cardTrigger);
+    return;
+  }
+
+  // Toggle existing reaction pill
+  const reactBtn = e.target.closest('.reaction');
+  if (reactBtn) {
+    const msgEl = reactBtn.closest('.msg');
+    const msgId = Number(msgEl?.dataset.msgId);
+    const emoji = reactBtn.dataset.emoji;
+    const msgObj = getActiveMessages().find(m => m.id === msgId);
+    if (msgObj && msgObj.reactions) {
+      const r = msgObj.reactions.find(x => x.emoji === emoji);
+      if (r) {
+        r.mine = !r.mine;
+        r.count += r.mine ? 1 : -1;
+        if (r.count <= 0) msgObj.reactions = msgObj.reactions.filter(x => x !== r);
+        renderAllMessages();
+      }
+    }
+    return;
+  }
+
+  // Hover quick reaction
+  const qReact = e.target.closest('[data-quick-react]');
+  if (qReact) {
+    const emoji = qReact.dataset.quickReact;
+    const msgEl = qReact.closest('.msg');
+    const msgId = Number(msgEl?.dataset.msgId);
+    const msgObj = getActiveMessages().find(m => m.id === msgId);
+    if (msgObj) {
+      if (!msgObj.reactions) msgObj.reactions = [];
+      const existing = msgObj.reactions.find(r => r.emoji === emoji);
+      if (existing) {
+        if (!existing.mine) { existing.mine = true; existing.count++; }
+      } else {
+        msgObj.reactions.push({ emoji, count: 1, mine: true });
+      }
+      renderAllMessages();
+    }
+    return;
+  }
+
+  // Message hover actions (reply, pin, delete)
+  const msgAct = e.target.closest('[data-action]');
+  if (msgAct) {
+    const action = msgAct.dataset.action;
+    const msgEl = msgAct.closest('.msg');
+    const msgId = Number(msgEl?.dataset.msgId);
+    const list = getActiveMessages();
+    const msgObj = list.find(m => m.id === msgId);
+    if (!msgObj) return;
+
+    if (action === 'reply') {
+      const u = users[msgObj.user] || users.voce;
+      const plain = msgObj.content.replace(/<[^>]+>/g, '').slice(0, 60);
+      state.replyingTo = { user: msgObj.user, preview: plain };
+      $('#reply-target-name').textContent = `@${u.name}`;
+      $('#reply-banner').classList.remove('hidden');
+      $('#message-input').focus();
+    } else if (action === 'pin') {
+      msgObj.pinned = !msgObj.pinned;
+      renderAllMessages();
+      showToast(msgObj.pinned ? 'Mensagem fixada no canal 📌' : 'Mensagem desafixada');
+    } else if (action === 'edit') {
+      const plainCurrent = msgObj.content.replace(/<[^>]+>/g, '');
+      openModal(
+        '✏️ Editar Mensagem',
+        `
+          <div class="modal-field">
+            <label>Texto da Mensagem</label>
+            <input type="text" id="edit-msg-input" value="${esc(plainCurrent)}">
+          </div>
+        `,
+        () => {
+          const updated = ($('#edit-msg-input').value || '').trim();
+          if (updated) {
+            msgObj.content = formatRichText(esc(updated));
+            msgObj.edited = true;
+            saveStateToStorage();
+            renderAllMessages();
+            showToast('Mensagem editada!');
+          }
+        },
+        'Salvar'
+      );
+    } else if (action === 'delete') {
+      const idx = list.indexOf(msgObj);
+      if (idx > -1) list.splice(idx, 1);
+      saveStateToStorage();
+      renderAllMessages();
+      showToast('Mensagem excluída');
+    }
+    return;
+  }
+
+  // Poll voting
+  const pollOpt = e.target.closest('[data-poll-idx]');
+  if (pollOpt) {
+    const pollCard = pollOpt.closest('[data-poll-msg]');
+    const msgId = Number(pollCard?.dataset.pollMsg);
+    const idx = Number(pollOpt.dataset.pollIdx);
+    const msgObj = getActiveMessages().find(m => m.id === msgId);
+    if (msgObj && msgObj.poll) {
+      const opt = msgObj.poll.options[idx];
+      opt.voted = !opt.voted;
+      opt.votes += opt.voted ? 1 : -1;
+      renderAllMessages();
+    }
+    return;
+  }
+
+  // DM sidebar item click
+  const dmItem = e.target.closest('[data-dm-user]');
+  if (dmItem) {
+    openDmWith(dmItem.dataset.dmUser);
+    return;
+  }
+
+  // Friends Hub actions
+  const openDmBtn = e.target.closest('[data-open-dm]');
+  if (openDmBtn) {
+    openDmWith(openDmBtn.dataset.openDm);
+    return;
+  }
+  const callFriendBtn = e.target.closest('[data-call-friend]');
+  if (callFriendBtn) {
+    const u = users[callFriendBtn.dataset.callFriend];
+    switchServer('orbita');
+    joinVoice('principal');
+    showToast(`Chamada iniciada com ${u ? u.name : 'amigo'} na Sala Principal!`);
+    return;
+  }
+});
+
+// Friends Hub Tabs
+$('#dm-friends-hub-btn').addEventListener('click', openFriendsHub);
+$$('[data-ftab]').forEach(tab => {
+  tab.addEventListener('click', () => {
+    $$('[data-ftab]').forEach(t => t.classList.remove('active'));
+    tab.classList.add('active');
+    state.friendsFilter = tab.dataset.ftab;
+    renderFriendsHub();
+  });
+});
+
+$('#btn-open-add-friend').addEventListener('click', () => {
+  openModal(
+    'Adicionar Amigo no Órbita',
+    `
+      <div class="modal-field">
+        <label>Nome de Usuário ou Órbita Tag</label>
+        <input type="text" id="add-friend-handle" placeholder="ex: dev_br#0001">
+      </div>
+    `,
+    () => {
+      const h = ($('#add-friend-handle').value || 'novo_amigo').trim();
+      showToast(`Pedido de amizade enviado para ${h}!`);
+    },
+    'Enviar Pedido'
+  );
+});
+
+$('#dm-quick-find').addEventListener('click', () => {
+  openModal(
+    'Busca Rápida (Ctrl+K)',
+    `
+      <div class="modal-field">
+        <label>Ir para canal ou conversa direta</label>
+        <input type="text" id="quick-jump-input" placeholder="Digite #design, #dev, @Luna...">
+      </div>
+    `,
+    () => {
+      const v = ($('#quick-jump-input').value || '').trim().toLowerCase();
+      if (v.includes('luna')) openDmWith('luna');
+      else if (v.includes('kai')) openDmWith('kai');
+      else if (v.includes('design')) { switchServer('orbita'); setTextChannel('design'); }
+      else if (v.includes('dev')) { switchServer('orbita'); setTextChannel('dev'); }
+      else { switchServer('orbita'); setTextChannel('geral'); }
+    },
+    'Ir Agora'
+  );
+});
+
+
+/* ============================================================
+   PERSISTÊNCIA GRATUITA (LOCALSTORAGE) + BROADCAST P2P + WEBSOCKET
+============================================================ */
+const STORAGE_KEY = 'orbita_siteee_state_v2';
+const backendConfig = {
+  wsUrl: 'ws://localhost:8000/ws',
+  livekitUrl: '',
+  supabaseUrl: '',
+  wsConnected: false
+};
+let wsClient = null;
+let localCamStream = null;
+let localScreenStream = null;
+
+function saveStateToStorage() {
+  try {
+    const payload = {
+      channelMessages,
+      serversData,
+      voce: users.voce,
+      theme: state.theme,
+      density: state.density,
+      backendConfig: {
+        wsUrl: backendConfig.wsUrl,
+        livekitUrl: backendConfig.livekitUrl,
+        supabaseUrl: backendConfig.supabaseUrl
+      }
+    };
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
+  } catch (e) {}
+}
+
+function loadStateFromStorage() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (!raw) return;
+    const data = JSON.parse(raw);
+    if (data.channelMessages) Object.assign(channelMessages, data.channelMessages);
+    if (data.serversData) Object.assign(serversData, data.serversData);
+    if (data.voce) Object.assign(users.voce, data.voce);
+    if (data.theme) {
+      state.theme = data.theme;
+      document.body.dataset.theme = state.theme;
+    }
+    if (data.density) {
+      state.density = data.density;
+      document.body.dataset.density = state.density;
+    }
+    if (data.backendConfig) Object.assign(backendConfig, data.backendConfig);
+  } catch (e) {}
+}
+
+// Multi-tab real-time sync (100% free in-browser P2P across tabs)
+let bcChannel = null;
+try {
+  if ('BroadcastChannel' in window) {
+    bcChannel = new BroadcastChannel('orbita_siteee_realtime');
+    bcChannel.onmessage = (ev) => {
+      const msg = ev.data;
+      if (msg && msg.type === 'SYNC_MESSAGE') {
+        const { convKey, message } = msg;
+        if (!channelMessages[convKey]) channelMessages[convKey] = [];
+        if (!channelMessages[convKey].some(x => x.id === message.id)) {
+          channelMessages[convKey].push(message);
+          saveStateToStorage();
+          if (getConversationKey() === convKey) renderAllMessages();
+        }
+      }
+    };
+  }
+} catch (e) {}
+
+function connectFreeWebSocket() {
+  try {
+    if (wsClient) {
+      wsClient.onclose = null;
+      wsClient.close();
+    }
+    if (!backendConfig.wsUrl) return;
+    wsClient = new WebSocket(backendConfig.wsUrl);
+    wsClient.onopen = () => {
+      backendConfig.wsConnected = true;
+      $('#conn-label').textContent = 'Servidor Ativo';
+      $('#conn-dot').style.background = 'var(--online)';
+      showToast('Conectado ao servidor local FastAPI em tempo real!');
+    };
+    wsClient.onmessage = (ev) => {
+      try {
+        const packet = JSON.parse(ev.data);
+        if (packet.type === 'CHAT_MESSAGE' && packet.convKey && packet.message) {
+          if (!channelMessages[packet.convKey]) channelMessages[packet.convKey] = [];
+          if (!channelMessages[packet.convKey].some(x => x.id === packet.message.id)) {
+            channelMessages[packet.convKey].push(packet.message);
+            saveStateToStorage();
+            if (getConversationKey() === packet.convKey) renderAllMessages();
+          }
+        }
+      } catch (err) {}
+    };
+    wsClient.onerror = () => {
+      backendConfig.wsConnected = false;
+      $('#conn-label').textContent = 'Modo Local Grátis';
+    };
+    wsClient.onclose = () => {
+      backendConfig.wsConnected = false;
+      $('#conn-label').textContent = 'Modo Local Grátis';
+    };
+  } catch (e) {}
+}
+
+function broadcastNewMessage(convKey, message) {
+  saveStateToStorage();
+  try {
+    if (bcChannel) bcChannel.postMessage({ type: 'SYNC_MESSAGE', convKey, message });
+  } catch (e) {}
+  try {
+    if (wsClient && wsClient.readyState === WebSocket.OPEN) {
+      wsClient.send(JSON.stringify({ type: 'CHAT_MESSAGE', convKey, message }));
+    }
+  } catch (e) {}
+}
+
+/* ============================================================
+   WEBRTC REAL (CÂMERA E COMPARTILHAMENTO DE TELA DO NAVEGADOR)
+============================================================ */
+async function toggleRealCamera() {
+  if (state.camera && navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+    try {
+      localCamStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
+      attachRealStreamsToStage();
+    } catch (err) {
+      // Fallback to simulated HD camera card if no webcam or blocked by iframe
+    }
+  } else if (localCamStream) {
+    localCamStream.getTracks().forEach(t => t.stop());
+    localCamStream = null;
+  }
+}
+
+async function toggleRealScreenShare() {
+  if (screenSharingSelf && navigator.mediaDevices && navigator.mediaDevices.getDisplayMedia) {
+    try {
+      localScreenStream = await navigator.mediaDevices.getDisplayMedia({ video: true });
+      localScreenStream.getVideoTracks()[0].onended = () => {
+        screenSharingSelf = false;
+        localScreenStream = null;
+        $('#vc-screen').classList.remove('active');
+        renderSidebarChannels();
+        renderVoiceStage();
+      };
+      attachRealStreamsToStage();
+    } catch (err) {
+      // Fallback to simulated LiveKit code stream if blocked by sandbox
+    }
+  } else if (localScreenStream) {
+    localScreenStream.getTracks().forEach(t => t.stop());
+    localScreenStream = null;
+  }
+}
+
+function attachRealStreamsToStage() {
+  setTimeout(() => {
+    if (localScreenStream && screenSharingSelf) {
+      const shareContainer = $('.stage-main-share .tile.share');
+      if (shareContainer && !shareContainer.querySelector('video')) {
+        const v = document.createElement('video');
+        v.className = 'real-rtc-video';
+        v.autoplay = true;
+        v.muted = true;
+        v.playsInline = true;
+        v.srcObject = localScreenStream;
+        shareContainer.prepend(v);
+      }
+    }
+    if (localCamStream && state.camera) {
+      const selfTile = $('.tile[data-user-card="voce"]');
+      if (selfTile && !selfTile.querySelector('video')) {
+        const v = document.createElement('video');
+        v.className = 'real-rtc-video';
+        v.autoplay = true;
+        v.muted = true;
+        v.playsInline = true;
+        v.srcObject = localCamStream;
+        selfTile.prepend(v);
+      }
+    }
+  }, 50);
+}
+
+// Hook camera & screen share buttons to real WebRTC streams
+$('#vc-video').addEventListener('click', toggleRealCamera);
+$('#vb-video').addEventListener('click', toggleRealCamera);
+$('#vc-screen').addEventListener('click', toggleRealScreenShare);
+
+/* ============================================================
+   UPLOAD REAL DE IMAGEM (ARQUIVO, CTRL+V E DRAG & DROP)
+============================================================ */
+function sendImageFile(file) {
+  if (!file || !file.type.startsWith('image/')) return;
+  const reader = new FileReader();
+  reader.onload = () => {
+    const now = new Date();
+    const time = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+    const msg = {
+      id: Date.now(),
+      user: 'voce',
+      time,
+      content: `📷 Imagem enviada: <code>${esc(file.name)}</code>`,
+      imageUrl: reader.result
+    };
+    getActiveMessages().push(msg);
+    broadcastNewMessage(getConversationKey(), msg);
+    renderAllMessages();
+    showToast('Imagem anexada no chat!');
+  };
+  reader.readAsDataURL(file);
+}
+
+$('#real-file-input').addEventListener('change', (e) => {
+  const f = e.target.files && e.target.files[0];
+  if (f) sendImageFile(f);
+  e.target.value = '';
+});
+
+$$('[data-attach="file"]').forEach(btn => {
+  btn.addEventListener('click', () => {
+    $('#attach-popover').classList.add('hidden');
+    $('#real-file-input').click();
+  });
+});
+
+document.addEventListener('paste', (e) => {
+  const items = e.clipboardData && e.clipboardData.items;
+  if (!items) return;
+  for (const item of items) {
+    if (item.type.indexOf('image') !== -1) {
+      sendImageFile(item.getAsFile());
+      break;
+    }
+  }
+});
+
+/* ============================================================
+   AUTOCOMPLETE (@MENÇÕES E #CANAIS) + ATALHOS DE TECLADO
+============================================================ */
+$('#message-input').addEventListener('input', (e) => {
+  const val = e.target.value;
+  const pop = $('#autocomplete-popover');
+  const lastWord = val.split(/\s+/).pop() || '';
+
+  if (lastWord.startsWith('@')) {
+    const query = lastWord.slice(1).toLowerCase();
+    const matches = Object.values(users).filter(u => u.name.toLowerCase().includes(query) || u.handle.toLowerCase().includes(query)).slice(0, 5);
+    if (matches.length) {
+      pop.innerHTML = `<div class="ac-head">Membros (@menção)</div>` + matches.map(u => `
+        <button type="button" data-ac-val="@${esc(u.name)} ">
+          <span><strong>@${esc(u.name)}</strong> <small style="color:var(--text-mut)">${esc(u.handle)}</small></span>
+          <span style="font-size:11px;color:var(--accent-hover)">${esc(u.role || 'Membro')}</span>
+        </button>
+      `).join('');
+      pop.classList.remove('hidden');
+      bindAutocompleteClicks();
+      return;
+    }
+  } else if (lastWord.startsWith('#')) {
+    const query = lastWord.slice(1).toLowerCase();
+    const srv = serversData[state.activeServer];
+    const matches = (srv ? srv.textChannels : []).filter(c => c.name.toLowerCase().includes(query)).slice(0, 5);
+    if (matches.length) {
+      pop.innerHTML = `<div class="ac-head">Canais de Texto (#canal)</div>` + matches.map(c => `
+        <button type="button" data-ac-val="#${esc(c.name)} ">
+          <span><strong>#${esc(c.name)}</strong></span>
+          <span style="font-size:11px;color:var(--text-mut)">${esc(c.desc)}</span>
+        </button>
+      `).join('');
+      pop.classList.remove('hidden');
+      bindAutocompleteClicks();
+      return;
+    }
+  }
+  pop.classList.add('hidden');
+});
+
+function bindAutocompleteClicks() {
+  $$('[data-ac-val]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const inp = $('#message-input');
+      const parts = inp.value.split(/\s+/);
+      parts.pop();
+      parts.push(btn.dataset.acVal);
+      inp.value = parts.join(' ');
+      $('#autocomplete-popover').classList.add('hidden');
+      inp.focus();
+    });
+  });
+}
+
+document.addEventListener('keydown', (e) => {
+  if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') {
+    e.preventDefault();
+    $('#dm-quick-find').click();
+  } else if (e.key === 'Escape') {
+    $('#modal-backdrop').classList.add('hidden');
+    $('#autocomplete-popover').classList.add('hidden');
+    $('#profile-popover').classList.add('hidden');
+    if (state.replyingTo) $('#cancel-reply-btn').click();
+  }
+});
+
+/* ============================================================
+   ASSISTENTE DE CONFIGURAÇÃO 100% GRATUITA (PASTA SITEEE)
+============================================================ */
+$('#btn-free-setup').addEventListener('click', () => {
+  openModal(
+    '☁️ Configurar Site 100% Gratuito (Pasta SITEEE)',
+    `
+      <div style="font-size:13px;color:var(--text-dim);line-height:1.45;">
+        O seu site já está com <strong>persistência local ativa</strong>, <strong>sincronização entre abas (BroadcastChannel)</strong> e <strong>WebRTC nativo (câmera e tela reais)</strong>. Para rodar o servidor Python/FastAPI na sua pasta <code>C:\Users\João Pedro\Desktop\SITEEE</code>:
+      </div>
+      <div class="modal-field">
+        <label>1. Comando Rápido no PowerShell / CMD (100% Gratuito)</label>
+        <div class="code-cmd-box">cd "C:\Users\João Pedro\Desktop\SITEEE"
+iniciar_orbita.bat</div>
+      </div>
+      <div class="modal-field">
+        <label>2. URL do Servidor WebSocket (Local ou Render.com Free)</label>
+        <input type="text" id="cfg-ws-url" value="${esc(backendConfig.wsUrl)}" placeholder="ws://localhost:8000/ws">
+      </div>
+      <div class="modal-field">
+        <label>3. URL LiveKit Cloud Free (Opcional — 50GB/mês grátis)</label>
+        <input type="text" id="cfg-lk-url" value="${esc(backendConfig.livekitUrl)}" placeholder="wss://seu-projeto.livekit.cloud">
+      </div>
+      <div style="display:flex;justify-content:space-between;align-items:center;padding-top:4px;gap:8px;flex-wrap:wrap;">
+        <button type="button" class="btn-primary" id="btn-apply-folder-direct" style="background:var(--online)">⚡ Aplicar na Pasta SITEEE Agora</button>
+        <button type="button" class="btn-secondary" id="btn-reset-storage" style="color:var(--danger)">Restaurar Dados de Fábrica</button>
+      </div>
+    `,
+    () => {
+      backendConfig.wsUrl = ($('#cfg-ws-url').value || '').trim();
+      backendConfig.livekitUrl = ($('#cfg-lk-url').value || '').trim();
+      saveStateToStorage();
+      connectFreeWebSocket();
+      showToast('Configurações gratuitas salvas e reconectando...');
+    },
+    'Salvar & Conectar'
+  );
+
+  const applyBtn = $('#btn-apply-folder-direct');
+  if (applyBtn) {
+    applyBtn.onclick = () => applyDirectlyToLocalFolder();
+  }
+  const resetBtn = $('#btn-reset-storage');
+  if (resetBtn) {
+    resetBtn.onclick = () => {
+      try { localStorage.removeItem(STORAGE_KEY); } catch (e) {}
+      location.reload();
+    };
+  }
+});
+
+
+/* ============================================================
+   SOUNDBOARD SINTETIZADO (EFEITOS DE CALL) + DRAG & DROP + VAD
+============================================================ */
+function playSoundboard(effect) {
+  try {
+    if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    if (audioCtx.state === 'suspended') audioCtx.resume();
+    const now = audioCtx.currentTime;
+    const osc = audioCtx.createOscillator();
+    const gain = audioCtx.createGain();
+    osc.connect(gain);
+    gain.connect(audioCtx.destination);
+    gain.gain.setValueAtTime(0.08, now);
+
+    if (effect === 'fanfare') {
+      osc.type = 'triangle';
+      osc.frequency.setValueAtTime(523.25, now);
+      osc.frequency.setValueAtTime(659.25, now + 0.1);
+      osc.frequency.setValueAtTime(783.99, now + 0.2);
+      osc.frequency.setValueAtTime(1046.5, now + 0.32);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.55);
+      osc.start(now);
+      osc.stop(now + 0.55);
+    } else if (effect === 'coin') {
+      osc.type = 'square';
+      osc.frequency.setValueAtTime(987.77, now);
+      osc.frequency.setValueAtTime(1318.51, now + 0.08);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.35);
+      osc.start(now);
+      osc.stop(now + 0.35);
+    } else if (effect === 'laser') {
+      osc.type = 'sawtooth';
+      osc.frequency.setValueAtTime(1200, now);
+      osc.frequency.exponentialRampToValueAtTime(140, now + 0.25);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.26);
+      osc.start(now);
+      osc.stop(now + 0.26);
+    } else if (effect === 'powerup') {
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(330, now);
+      osc.frequency.exponentialRampToValueAtTime(880, now + 0.3);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.35);
+      osc.start(now);
+      osc.stop(now + 0.35);
+    }
+  } catch (e) {}
+}
+
+$$('[data-sfx]').forEach(btn => {
+  btn.addEventListener('click', () => {
+    playSoundboard(btn.dataset.sfx);
+    const fl = document.createElement('div');
+    fl.className = 'stage-reaction-float';
+    fl.textContent = btn.textContent.split(' ')[0];
+    $('#voice-view').appendChild(fl);
+    setTimeout(() => fl.remove(), 1600);
+    showToast(`Efeito sonoro enviado na sala: ${btn.textContent}`);
+  });
+});
+
+// Drag & Drop de imagens na janela
+window.addEventListener('dragover', (e) => {
+  e.preventDefault();
+  $('#dropzone-overlay').classList.remove('hidden');
+});
+window.addEventListener('dragleave', (e) => {
+  if (e.relatedTarget === null) {
+    $('#dropzone-overlay').classList.add('hidden');
+  }
+});
+window.addEventListener('drop', (e) => {
+  e.preventDefault();
+  $('#dropzone-overlay').classList.add('hidden');
+  const file = e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0];
+  if (file) sendImageFile(file);
+});
+
+// Gravação direta na pasta C:\Users\João Pedro\Desktop\SITEEE via File System Access API
+async function applyDirectlyToLocalFolder() {
+  if ('showDirectoryPicker' in window) {
+    try {
+      const dirHandle = await window.showDirectoryPicker({ mode: 'readwrite' });
+      const htmlSource = '<!DOCTYPE html>\n' + document.documentElement.outerHTML;
+
+      async function writeTextFile(filename, content) {
+        const fh = await dirHandle.getFileHandle(filename, { create: true });
+        const writable = await fh.createWritable();
+        await writable.write(content);
+        await writable.close();
+      }
+
+      await writeTextFile('orbita.html', htmlSource);
+      await writeTextFile('index.html', htmlSource);
+      await writeTextFile('requirements.txt', 'fastapi==0.115.0\nuvicorn[standard]==0.30.6\nPyJWT==2.9.0\n');
+      await writeTextFile('iniciar_orbita.bat', '@echo off\ncd /d "%~dp0"\nif not exist ".venv" python -m venv .venv\ncall .venv\\Scripts\\activate.bat\npip install -q -r requirements.txt\nstart http://localhost:8000\nuvicorn server:app --host 0.0.0.0 --port 8000 --reload\n');
+      showToast('Arquivos gravados diretamente na sua pasta SITEEE!');
+      return;
+    } catch (err) {
+      // Fallback to downloading orbita.html directly if blocked by iframe security
+    }
+  }
+  // Fallback: triggers direct download of the updated orbita.html
+  const blob = new Blob(['<!DOCTYPE html>\n' + document.documentElement.outerHTML], { type: 'text/html;charset=utf-8' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'orbita.html';
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  showToast('Download de orbita.html iniciado! Salve em C:\\Users\\João Pedro\\Desktop\\SITEEE');
+}
+
+/* ============================================================
+   INICIALIZAÇÃO
+============================================================ */
+loadStateFromStorage();
+connectFreeWebSocket();
+renderSidebarChannels();
+renderMembersSidebar();
+renderAllMessages();
+</script>
+</body>
+</html>
